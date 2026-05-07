@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { useNavigate } from "react-router";
 import {
   Layers, Film, Zap, Scissors, User, Upload,
   Play, Download, RefreshCw, CheckCircle, AlertCircle, X,
@@ -3475,6 +3476,7 @@ function StatsPage({ onClose }: { onClose: () => void }) {
 // ─── App shell ────────────────────────────────────────────────────────────────
 
 export default function App() {
+  const navigate = useNavigate();
   const [active, setActive] = useState<FeatureId>("F01");
   const [showStats, setShowStats] = useState(false);
   const [operatorInput, setOperatorInput] = useState(() => localStorage.getItem("ai_operator") || "");
@@ -3506,6 +3508,12 @@ export default function App() {
         <div className="h-5 w-px bg-border" />
         <span className="text-[12px] font-medium text-muted-foreground">投放素材平台</span>
         <div className="ml-auto flex items-center gap-3">
+          {/* 返回首页 */}
+          <button onClick={() => navigate("/")}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-medium transition-all"
+            style={{ background: "rgba(18,21,42,0.04)", border: "1.5px solid rgba(18,21,42,0.08)", color: "#5A5F7A" }}>
+            ← 首页
+          </button>
           {/* 操作员输入 */}
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl"
             style={{ background: "rgba(18,21,42,0.04)", border: "1.5px solid rgba(18,21,42,0.08)" }}>
