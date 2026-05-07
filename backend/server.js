@@ -12,8 +12,20 @@ const fs = require("fs");
 const os = require("os");
 const https = require("https");
 const http = require("http");
+const { execSync } = require("child_process");
 
-// 修复1：同时设置 ffmpeg + ffprobe 路径
+// Linux 环境下给 ffmpeg/ffprobe 加执行权限
+try {
+  if (process.platform !== "win32") {
+    execSync(`chmod +x "${ffmpegPath}"`, { stdio: "ignore" });
+    execSync(`chmod +x "${ffprobePath}"`, { stdio: "ignore" });
+    console.log("✅ ffmpeg/ffprobe 权限已设置");
+  }
+} catch (e) {
+  console.warn("⚠️  chmod 失败:", e.message);
+}
+
+// 同时设置 ffmpeg + ffprobe 路径
 ffmpeg.setFfmpegPath(ffmpegPath);
 ffmpeg.setFfprobePath(ffprobePath);
 
