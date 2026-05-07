@@ -6,7 +6,7 @@ import {
   Image, Type, Shield, BarChart2, TrendingUp, MessageSquare,
 } from "lucide-react";
 
-const API = "https://no1-production.up.railway.app";
+const API = "https://no1-22o9.onrender.com";
 
 type FeatureId = "F01" | "F02" | "F03" | "F04" | "F05" | "F06";
 type ProcessState = "idle" | "processing" | "done" | "error";
