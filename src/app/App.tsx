@@ -497,9 +497,26 @@ function Card({ children, className = "", padding = "p-6" }: {
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[12px] font-semibold text-muted-foreground mb-2 tracking-wide uppercase">
+    <p className="text-[10px] font-bold text-muted-foreground mb-2.5 tracking-widest uppercase">
       {children}
     </p>
+  );
+}
+
+function SectionBox({ title, children, color }: {
+  title?: string; children: React.ReactNode; color?: string;
+}) {
+  return (
+    <div className="rounded-2xl p-4 flex flex-col gap-4"
+      style={{ background: "#F8FAFF", border: "1.5px solid rgba(18,21,42,0.07)" }}>
+      {title && (
+        <div className="flex items-center gap-2 -mb-1">
+          {color && <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />}
+          <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: color ?? "#8C90AB" }}>{title}</p>
+        </div>
+      )}
+      {children}
+    </div>
   );
 }
 
@@ -834,11 +851,11 @@ function F01() {
   const dim = ratioDims[ratio] ?? ratioDims["9:16"];
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+    <div className="flex flex-col gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-5">
 
         {/* 左栏：视频列表 + 预览 + 时间轴 */}
-        <div className="lg:col-span-3 flex flex-col gap-3">
+        <div className="md:col-span-3 flex flex-col gap-4">
 
           {/* 主预览区 */}
           {sel ? (
@@ -995,84 +1012,108 @@ function F01() {
         </div>
 
         {/* 右栏：输出参数设定 */}
-        <div className="lg:col-span-2 flex flex-col gap-4">
-          <div>
-            <FieldLabel>目标比例</FieldLabel>
-            <StyledSelect value={ratio} onChange={setRatio} options={[
-              { label: "9:16  竖版（TikTok / Reels）", value: "9:16" },
-              { label: "1:1   方形（Instagram Feed）", value: "1:1" },
-              { label: "4:5   纵向（Instagram 广告）", value: "4:5" },
-              { label: "16:9  横版（YouTube）", value: "16:9" },
-            ]} />
-          </div>
-          <div>
-            <FieldLabel>边缘填充方式</FieldLabel>
-            <StyledSelect value={fill} onChange={setFill} options={[
-              { label: "模糊背景填充", value: "blur" },
-              { label: "镜像填充", value: "mirror" },
-              { label: "纯色（黑色）填充", value: "solid" },
-            ]} />
-          </div>
-          <div>
-            <FieldLabel>统一命名前缀（可选）</FieldLabel>
-            <StyledInput value={unifiedName} onChange={setUnifiedName} placeholder="留空则使用原文件名" />
-          </div>
+        <div className="md:col-span-2 flex flex-col gap-3">
 
-          {/* 文字水印 */}
-          <div>
-            <FieldLabel>文字水印（可选）</FieldLabel>
-            <div className="flex flex-col gap-2">
-              <StyledInput value={watermarkText} onChange={setWatermarkText}
-                placeholder="品牌名 / 口号 / 账号名" />
-              {watermarkText.trim() && (
-                <div className="grid grid-cols-2 gap-1.5">
-                  {([
-                    { v: "tl", label: "↖ 左上" }, { v: "tr", label: "↗ 右上" },
-                    { v: "bl", label: "↙ 左下" }, { v: "br", label: "↘ 右下" },
-                  ] as const).map(p => (
-                    <button key={p.v} onClick={() => setWatermarkPos(p.v)}
-                      className="py-1.5 rounded-lg text-[11px] font-medium transition-all"
-                      style={{
-                        background: watermarkPos === p.v ? color + "15" : "#F4F6FD",
-                        border: `1px solid ${watermarkPos === p.v ? color + "45" : "rgba(18,21,42,0.08)"}`,
-                        color: watermarkPos === p.v ? color : "#5A5F7A",
-                      }}>{p.label}</button>
-                  ))}
+          {/* ── 输出设置 ── */}
+          <SectionBox title="输出设置" color={color}>
+            <div>
+              <FieldLabel>目标比例</FieldLabel>
+              <StyledSelect value={ratio} onChange={setRatio} options={[
+                { label: "9:16  竖版（TikTok / Reels）", value: "9:16" },
+                { label: "1:1   方形（Instagram Feed）", value: "1:1" },
+                { label: "4:5   纵向（Instagram 广告）", value: "4:5" },
+                { label: "16:9  横版（YouTube）", value: "16:9" },
+              ]} />
+            </div>
+            <div>
+              <FieldLabel>边缘填充方式</FieldLabel>
+              <StyledSelect value={fill} onChange={setFill} options={[
+                { label: "模糊背景填充", value: "blur" },
+                { label: "镜像填充", value: "mirror" },
+                { label: "纯色（黑色）填充", value: "solid" },
+              ]} />
+            </div>
+            <div>
+              <FieldLabel>统一命名前缀（可选）</FieldLabel>
+              <StyledInput value={unifiedName} onChange={setUnifiedName} placeholder="留空则使用原文件名" />
+            </div>
+            {/* 实时效果预览 */}
+            <div>
+              <FieldLabel>输出效果预览</FieldLabel>
+              {sel
+                ? <OutputPreview src={sel.previewUrl} ratio={ratio} fill={fill} color={color} />
+                : (
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-xl flex items-center justify-center"
+                      style={{ width: 56, height: 56, background: "#EEF1FB" }}>
+                      <div className="rounded-md flex items-center justify-center transition-all"
+                        style={{ width: dim.w * 0.9, height: dim.h * 0.9, background: color + "20", border: `1.5px solid ${color}40` }}>
+                        <span className="text-[6px] font-bold" style={{ color }}>{ratio}</span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">上传视频后查看实时效果</p>
+                  </div>
+                )
+              }
+            </div>
+          </SectionBox>
+
+          {/* ── 画面增强 ── */}
+          <SectionBox title="画面增强" color={color}>
+            {/* 文字水印 */}
+            <div>
+              <FieldLabel>文字水印（可选）</FieldLabel>
+              <div className="flex flex-col gap-2">
+                <StyledInput value={watermarkText} onChange={setWatermarkText}
+                  placeholder="品牌名 / 口号 / 账号名" />
+                {watermarkText.trim() && (
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {([
+                      { v: "tl", label: "↖ 左上" }, { v: "tr", label: "↗ 右上" },
+                      { v: "bl", label: "↙ 左下" }, { v: "br", label: "↘ 右下" },
+                    ] as const).map(p => (
+                      <button key={p.v} onClick={() => setWatermarkPos(p.v)}
+                        className="py-1.5 rounded-lg text-[10px] font-semibold transition-all"
+                        style={{
+                          background: watermarkPos === p.v ? color + "15" : "white",
+                          border: `1px solid ${watermarkPos === p.v ? color + "45" : "rgba(18,21,42,0.1)"}`,
+                          color: watermarkPos === p.v ? color : "#5A5F7A",
+                        }}>{p.label}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            {/* 自动字幕 */}
+            <div>
+              <div className="flex items-center justify-between mb-2.5">
+                <FieldLabel>自动字幕（Whisper）</FieldLabel>
+                <Toggle on={subOn} onChange={() => setSubOn(p => !p)} label="" />
+              </div>
+              {subOn && (
+                <div className="flex flex-col gap-2">
+                  <StyledSelect value={subLang} onChange={setSubLang} options={SUB_LANG_OPTIONS} />
+                  <div className="grid grid-cols-4 gap-1">
+                    {SUB_STYLE_OPTS.map(s => (
+                      <button key={s.v} onClick={() => setSubStyle(s.v)}
+                        className="py-1 rounded-lg text-[10px] font-semibold transition-all"
+                        style={{
+                          background: subStyle === s.v ? color + "15" : "white",
+                          border: `1px solid ${subStyle === s.v ? color + "45" : "rgba(18,21,42,0.1)"}`,
+                          color: subStyle === s.v ? color : "#5A5F7A",
+                        }}>{s.label}</button>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    需配置 <code className="px-1 rounded" style={{ background: "rgba(18,21,42,0.05)" }}>OPENAI_API_KEY</code>；未配置自动降级为 Demo 字幕
+                  </p>
                 </div>
               )}
             </div>
-          </div>
+          </SectionBox>
 
-          {/* 自动字幕 */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <FieldLabel>自动字幕（Whisper）</FieldLabel>
-              <Toggle on={subOn} onChange={() => setSubOn(p => !p)} label="" />
-            </div>
-            {subOn && (
-              <div className="flex flex-col gap-2">
-                <StyledSelect value={subLang} onChange={setSubLang} options={SUB_LANG_OPTIONS} />
-                <div className="grid grid-cols-4 gap-1">
-                  {SUB_STYLE_OPTS.map(s => (
-                    <button key={s.v} onClick={() => setSubStyle(s.v)}
-                      className="py-1 rounded-lg text-[10px] font-medium transition-all"
-                      style={{
-                        background: subStyle === s.v ? color + "15" : "#F4F6FD",
-                        border: `1px solid ${subStyle === s.v ? color + "45" : "rgba(18,21,42,0.08)"}`,
-                        color: subStyle === s.v ? color : "#5A5F7A",
-                      }}>{s.label}</button>
-                  ))}
-                </div>
-                <p className="text-[10px] text-muted-foreground">
-                  需配置 <code className="px-1 rounded" style={{ background: "rgba(18,21,42,0.05)" }}>OPENAI_API_KEY</code>；未配置自动降级为 Demo 字幕
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* 片尾设置 */}
-          <div>
-            <FieldLabel>片尾视频（统一添加）</FieldLabel>
+          {/* ── 片尾设置 ── */}
+          <SectionBox title="片尾视频" color={color}>
             <input ref={outroInputRef} type="file" accept="video/*" className="hidden"
               onChange={(e) => setOutro(e.target.files?.[0] ?? null)} />
             {outroFile && outroPreviewUrl ? (
@@ -1083,7 +1124,7 @@ function F01() {
                   style={{ background: color + "08" }}>
                   <div>
                     <p className="text-[12px] font-semibold truncate max-w-[140px]" style={{ color }}>{outroFile.name}</p>
-                    <p className="text-[10px] text-muted-foreground">{(outroFile.size / 1024 / 1024).toFixed(1)} MB · 将跟在每条视频末尾</p>
+                    <p className="text-[10px] text-muted-foreground">{(outroFile.size / 1024 / 1024).toFixed(1)} MB · 将拼接在每条视频末尾</p>
                   </div>
                   <button onClick={() => setOutro(null)}
                     className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-red-50 flex-shrink-0"
@@ -1094,49 +1135,29 @@ function F01() {
               </div>
             ) : (
               <button onClick={() => outroInputRef.current?.click()}
-                className="w-full flex items-center gap-2.5 px-3 py-3 rounded-xl transition-all"
-                style={{ border: `1.5px dashed rgba(18,21,42,0.12)`, background: "#F8FAFF" }}>
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
+                style={{ border: `1.5px dashed rgba(18,21,42,0.12)`, background: "white" }}>
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
                   style={{ background: color + "12" }}>
-                  <Upload size={14} style={{ color }} />
+                  <Upload size={15} style={{ color }} />
                 </div>
                 <div className="text-left">
-                  <p className="text-[12px] font-medium text-foreground">上传片尾视频</p>
-                  <p className="text-[10px] text-muted-foreground">自动与主视频统一比例后拼接</p>
+                  <p className="text-[13px] font-semibold text-foreground">上传片尾视频</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">自动统一比例后拼接到每条视频末尾</p>
                 </div>
               </button>
             )}
-          </div>
+          </SectionBox>
 
-          {/* 实时输出效果预览 */}
-          <div>
-            <FieldLabel>输出效果预览</FieldLabel>
-            {sel
-              ? <OutputPreview src={sel.previewUrl} ratio={ratio} fill={fill} color={color} />
-              : (
-                <div className="flex items-center gap-3">
-                  <div className="rounded-xl flex items-center justify-center"
-                    style={{ width: 60, height: 60, background: "#F0F3FB" }}>
-                    <div className="rounded-md flex items-center justify-center transition-all"
-                      style={{ width: dim.w, height: dim.h, background: color + "20", border: `1.5px solid ${color}40` }}>
-                      <span className="text-[7px] font-bold" style={{ color }}>{ratio}</span>
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground">上传视频后查看效果</p>
-                </div>
-              )
-            }
-          </div>
-
-          {/* 同步比例按钮 */}
+          {/* 批量操作 */}
           {queue.length > 0 && (
-            <div className="rounded-xl p-3 flex flex-col gap-2"
-              style={{ background: color + "08", border: `1.5px solid ${color}20` }}>
-              <p className="text-[11px] font-semibold" style={{ color }}>批量操作</p>
-              <button onClick={() => {/* ratio already global */}}
-                className="text-[12px] text-left px-3 py-2 rounded-lg font-medium transition-all"
+            <div className="rounded-xl p-3 flex flex-col gap-1.5"
+              style={{ background: color + "08", border: `1.5px solid ${color}18` }}>
+              <p className="text-[10px] font-bold uppercase tracking-widest mb-0.5" style={{ color }}>批量操作</p>
+              <button onClick={() => {}}
+                className="text-[12px] text-left px-3 py-2 rounded-lg font-medium"
                 style={{ background: "white", border: "1px solid rgba(18,21,42,0.08)", color: "#5A5F7A" }}>
-                ✓ 当前比例将同步应用到所有视频
+                ✓ 当前比例同步应用到所有视频
               </button>
               <button
                 onClick={() => setQueue(p => p.map(v => ({ ...v, clipConfig: mkClipConfig() })))}
@@ -1159,7 +1180,7 @@ function F01() {
       </div>
 
       {/* 底部操作栏 */}
-      <div className="flex items-center gap-3 flex-wrap pt-2 border-t border-border">
+      <div className="flex items-center gap-3 flex-wrap pt-4 border-t border-border mt-1">
         {sel && sel.state !== "processing" && (
           <GhostBtn onClick={() => processOne(sel)}>
             <Sparkles size={13} />仅导出选中
@@ -1634,7 +1655,7 @@ function F02() {
   return (
     <div className="flex flex-col gap-5">
       {/* ── 片段上传 ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <SlotColumn
           label="Hook 片段" groups={hooks} color={color} max={3} allowMultiSub
           onAddGroup={() => setHooks(p => [...p, mkGroup()])}
@@ -1674,9 +1695,8 @@ function F02() {
       </div>
 
       {/* ── 音频设置 ── */}
-      <div className="rounded-2xl p-5" style={{ background: "#F4F6FD", border: "1.5px solid rgba(18,21,42,0.07)" }}>
-        <FieldLabel>音频设置</FieldLabel>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <SectionBox title="音频设置" color={color}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 
           {/* Left: mode selector */}
           <div className="flex flex-col gap-2">
@@ -1768,18 +1788,21 @@ function F02() {
             )}
           </div>
         </div>
-      </div>
+      </SectionBox>
 
       {/* ── 字幕设置 ── */}
-      <div className="rounded-2xl p-5" style={{ background: "#F4F6FD", border: "1.5px solid rgba(18,21,42,0.07)" }}>
-        <div className="flex items-center justify-between mb-4">
-          <FieldLabel>字幕设置</FieldLabel>
+      <SectionBox color={color}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-1.5 h-1.5 rounded-full" style={{ background: color }} />
+            <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color }}>字幕设置</p>
+          </div>
           <Toggle on={subtitleOn} onChange={() => setSubtitleOn(p => !p)} label="启用自动字幕" />
         </div>
         {subtitleOn && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <p className="text-[12px] font-medium text-muted-foreground mb-2">识别语言</p>
+              <FieldLabel>识别语言</FieldLabel>
               <StyledSelect value={subtitleLang} onChange={setSubtitleLang} options={[
                 { label: "中文（普通话）", value: "zh" },
                 { label: "英语", value: "en" },
@@ -1787,13 +1810,13 @@ function F02() {
               ]} />
             </div>
             <div>
-              <p className="text-[12px] font-medium text-muted-foreground mb-2">字幕样式</p>
+              <FieldLabel>字幕样式</FieldLabel>
               <div className="grid grid-cols-2 gap-1.5">
                 {SUBTITLE_STYLES.map((s) => {
                   const on = subtitleStyle === s.value;
                   return (
                     <button key={s.value} onClick={() => setSubtitleStyle(s.value)}
-                      className="px-3 py-2 rounded-xl text-[12px] font-medium text-left transition-all"
+                      className="px-3 py-2 rounded-xl text-[12px] font-semibold text-left transition-all"
                       style={{
                         background: on ? color + "12" : "white",
                         border: `1.5px solid ${on ? color + "45" : "rgba(18,21,42,0.08)"}`,
@@ -1808,9 +1831,9 @@ function F02() {
           </div>
         )}
         {!subtitleOn && (
-          <p className="text-sm text-muted-foreground">开启后将自动识别语音并为所有变体生成字幕轨道</p>
+          <p className="text-[13px] text-muted-foreground">开启后将自动识别语音并为所有变体生成字幕轨道</p>
         )}
-      </div>
+      </SectionBox>
 
       {/* ── 平台 + 变体计数 ── */}
       <div className="flex items-end gap-5 flex-wrap">
@@ -1873,7 +1896,7 @@ function F02() {
       {state === "done" && previews.length > 0 && (
         <div className="flex flex-col gap-3">
           <p className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wide">变体预览</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             {previews.map((p, i) => (
               <div key={p.url} className="rounded-2xl overflow-hidden"
                 style={{ border: `1.5px solid ${color}25`, background: color + "05" }}>
@@ -1947,8 +1970,8 @@ function F03() {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <div className="lg:col-span-2 flex flex-col gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div className="md:col-span-2 flex flex-col gap-4">
           <div>
             <div className="flex items-center justify-between mb-2">
               <FieldLabel>钩子内容描述</FieldLabel>
@@ -2013,7 +2036,7 @@ function F03() {
         idle={`生成 ${variants} 条钩子片段`} processing="AI 视频生成中…" done="生成完成" />
 
       {results.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
           {results.map((r) => (
             <div key={r.id} className="rounded-2xl overflow-hidden border transition-all duration-200 group cursor-pointer bg-card"
               style={{ border: "1.5px solid rgba(18,21,42,0.08)" }}>
@@ -2091,14 +2114,14 @@ function F04() {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-        <div className="lg:col-span-3">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-5">
+        <div className="md:col-span-3">
           <FieldLabel>上传长视频</FieldLabel>
           <DropZone label="拖入或点击上传" sublabel="MP4 · 5分钟 – 3小时" accept="video/*"
             onFile={(f) => { setFile(f); setClipConfig(mkClipConfig()); }} file={file} color={color}
             config={clipConfig} onConfigChange={setClipConfig} />
         </div>
-        <div className="lg:col-span-2 flex flex-col gap-4">
+        <div className="md:col-span-2 flex flex-col gap-4">
           <div>
             <div className="flex items-center justify-between mb-2">
               <FieldLabel>提取片段数量</FieldLabel>
@@ -2264,8 +2287,8 @@ function F05() {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-        <div className="lg:col-span-3 flex flex-col gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-5">
+        <div className="md:col-span-3 flex flex-col gap-3">
           <div>
             <div className="flex items-center justify-between mb-2">
               <FieldLabel>口播脚本</FieldLabel>
@@ -2300,7 +2323,7 @@ function F05() {
           <Toggle on={subtitle} onChange={() => setSubtitle(p => !p)} label="自动叠加字幕" />
         </div>
 
-        <div className="lg:col-span-2">
+        <div className="md:col-span-2">
           <FieldLabel>选择虚拟演员</FieldLabel>
           <div className="grid grid-cols-3 gap-2">
             {ACTORS.map((a) => {
@@ -2681,10 +2704,10 @@ function F06() {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-5">
 
         {/* 左栏：上传 + 预览 + 平台快检 */}
-        <div className="lg:col-span-3 flex flex-col gap-4">
+        <div className="md:col-span-3 flex flex-col gap-4">
           <div>
             <FieldLabel>上传视频</FieldLabel>
             <DropZone label="上传视频文件" sublabel="MP4 / MOV · 最大 2 GB" accept="video/*"
@@ -2723,7 +2746,7 @@ function F06() {
         </div>
 
         {/* 右栏：提取设置 + 平台参考 */}
-        <div className="lg:col-span-2 flex flex-col gap-4">
+        <div className="md:col-span-2 flex flex-col gap-4">
           <div>
             <FieldLabel>提取帧数</FieldLabel>
             <div className="flex items-center gap-3">
@@ -2923,10 +2946,10 @@ function _F07_removed() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-5">
 
         {/* ── 左栏：上传 + 结果 ── */}
-        <div className="lg:col-span-3 flex flex-col gap-4">
+        <div className="md:col-span-3 flex flex-col gap-4">
           <div>
             <FieldLabel>上传视频</FieldLabel>
             <DropZone label="上传视频文件" sublabel="MP4 / MOV · 自动提取音频送 Whisper 识别"
@@ -3013,7 +3036,7 @@ function _F07_removed() {
         </div>
 
         {/* ── 右栏：识别设置 ── */}
-        <div className="lg:col-span-2 flex flex-col gap-4">
+        <div className="md:col-span-2 flex flex-col gap-4">
           {/* 语言 */}
           <div>
             <FieldLabel>识别语言</FieldLabel>
@@ -3275,7 +3298,7 @@ function StatsPage({ onClose }: { onClose: () => void }) {
       <div className="relative flex-1 overflow-y-auto px-8 py-6 flex flex-col gap-6">
 
         {/* Hero 数字行 */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {heroCards.map((c, i) => (
             <div key={c.label} className="rounded-2xl p-5 relative overflow-hidden"
               style={{
@@ -3302,10 +3325,10 @@ function StatsPage({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* 中间两列 */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
 
           {/* 操作员排行榜 */}
-          <div className="lg:col-span-3 rounded-2xl p-6"
+          <div className="md:col-span-3 rounded-2xl p-6"
             style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
             <div className="flex items-center gap-2 mb-5">
               <TrendingUp size={14} style={{ color: "#FA709A" }} />
@@ -3351,7 +3374,7 @@ function StatsPage({ onClose }: { onClose: () => void }) {
           </div>
 
           {/* 模块分布 */}
-          <div className="lg:col-span-2 rounded-2xl p-6"
+          <div className="md:col-span-2 rounded-2xl p-6"
             style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
             <div className="flex items-center gap-2 mb-5">
               <Layers size={14} style={{ color: "#4FACFE" }} />
@@ -3575,8 +3598,8 @@ export default function App() {
           </div>
 
           {/* Panel */}
-          <div className="flex-1 p-6 flex flex-col">
-            <Card className="flex-1">{panels[active]}</Card>
+          <div className="flex-1 p-5 flex flex-col">
+            <Card className="flex-1" padding="p-6">{panels[active]}</Card>
           </div>
         </main>
       </div>
