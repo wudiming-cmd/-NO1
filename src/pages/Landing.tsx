@@ -1,14 +1,14 @@
 import { useNavigate } from "react-router";
 import { Film, Wand2, Sparkles, ArrowRight, Zap, Layers, Image, Type, Video, Scissors } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 
 const WORKSPACES = [
   {
     id: "video",
     icon: Film,
-    iconGradient: "linear-gradient(135deg, #4F6EF7 0%, #764BA2 100%)",
-    accentColor: "#4F6EF7",
-    accentSecond: "#764BA2",
+    gradient: "linear-gradient(135deg, #4F6EF7, #764BA2)",
+    color1: "#4F6EF7",
+    color2: "#764BA2",
     title: "视频批量剪辑",
     subtitle: "灵活批量生产短视频素材",
     features: [
@@ -20,14 +20,14 @@ const WORKSPACES = [
       { icon: Type, label: "自动字幕" },
     ],
     path: "/video",
-    stat: { value: "6", label: "功能模块" },
+    badge: "6 功能",
   },
   {
     id: "image",
     icon: Wand2,
-    iconGradient: "linear-gradient(135deg, #A855F7 0%, #EC4899 100%)",
-    accentColor: "#A855F7",
-    accentSecond: "#EC4899",
+    gradient: "linear-gradient(135deg, #A855F7, #EC4899)",
+    color1: "#A855F7",
+    color2: "#EC4899",
     title: "AI 图片编辑",
     subtitle: "智能化全自动图片编辑",
     features: [
@@ -39,269 +39,387 @@ const WORKSPACES = [
       { icon: Video, label: "视频导出" },
     ],
     path: "/image",
-    stat: { value: "AI", label: "智能驱动" },
+    badge: "AI 驱动",
   },
 ];
 
-export default function Landing() {
+function Card3D({ ws, onEnter }: { ws: typeof WORKSPACES[0]; onEnter: () => void }) {
   const navigate = useNavigate();
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [tilt, setTilt] = useState({ rx: 0, ry: 0 });
+  const [glow, setGlow] = useState({ x: 50, y: 50 });
+  const [hovered, setHovered] = useState(false);
+  const rafRef = useRef<number>(0);
+
+  const handleMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const el = cardRef.current;
+    if (!el) return;
+    cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
+      const r = el.getBoundingClientRect();
+      const x = (e.clientX - r.left) / r.width;
+      const y = (e.clientY - r.top) / r.height;
+      setTilt({ rx: (y - 0.5) * -14, ry: (x - 0.5) * 14 });
+      setGlow({ x: x * 100, y: y * 100 });
+    });
+  }, []);
+
+  const handleLeave = useCallback(() => {
+    cancelAnimationFrame(rafRef.current);
+    setTilt({ rx: 0, ry: 0 });
+    setGlow({ x: 50, y: 50 });
+    setHovered(false);
+  }, []);
+
+  const Icon = ws.icon;
+
+  return (
+    <div
+      ref={cardRef}
+      onMouseMove={handleMove}
+      onMouseEnter={() => { setHovered(true); onEnter(); }}
+      onMouseLeave={handleLeave}
+      onClick={() => navigate(ws.path)}
+      style={{
+        perspective: "1000px",
+        cursor: "pointer",
+        flex: 1,
+        minWidth: 0,
+      }}
+    >
+      {/* Animated gradient border wrapper */}
+      <div
+        className="card-border-anim"
+        style={{
+          borderRadius: 24,
+          padding: 1.5,
+          background: hovered
+            ? `linear-gradient(135deg, ${ws.color1}80, ${ws.color2}80, ${ws.color1}60)`
+            : "linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04))",
+          transition: "background 0.4s ease",
+          boxShadow: hovered
+            ? `0 0 40px ${ws.color1}30, 0 0 80px ${ws.color2}15, 0 20px 60px rgba(0,0,0,0.5)`
+            : "0 4px 24px rgba(0,0,0,0.4)",
+        }}
+      >
+        <div
+          style={{
+            borderRadius: 22.5,
+            padding: "28px 28px 26px",
+            background: "linear-gradient(145deg, rgba(15,16,30,0.95), rgba(10,11,20,0.98))",
+            backdropFilter: "blur(20px)",
+            transform: `perspective(1000px) rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg) translateZ(${hovered ? 8 : 0}px)`,
+            transition: hovered ? "transform 0.1s ease-out" : "transform 0.4s ease",
+            position: "relative",
+            overflow: "hidden",
+            display: "flex",
+            flexDirection: "column",
+            height: "100%",
+          }}
+        >
+          {/* Mouse-follow inner glow */}
+          <div style={{
+            position: "absolute",
+            inset: 0,
+            background: `radial-gradient(circle at ${glow.x}% ${glow.y}%, ${ws.color1}18 0%, transparent 60%)`,
+            pointerEvents: "none",
+            transition: hovered ? "none" : "opacity 0.4s ease",
+            opacity: hovered ? 1 : 0,
+            borderRadius: 22.5,
+          }} />
+
+          {/* Noise texture */}
+          <div style={{
+            position: "absolute", inset: 0, borderRadius: 22.5, opacity: 0.03,
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+            backgroundSize: "200px",
+            pointerEvents: "none",
+          }} />
+
+          {/* Top row: icon + badge */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+            {/* Icon with holo shimmer */}
+            <div style={{
+              width: 56, height: 56, borderRadius: 16,
+              background: ws.gradient,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              boxShadow: hovered ? `0 8px 32px ${ws.color1}60` : `0 4px 16px ${ws.color1}30`,
+              transform: hovered ? "scale(1.08) rotate(-4deg)" : "scale(1)",
+              transition: "all 0.35s cubic-bezier(0.34,1.56,0.64,1)",
+              position: "relative", overflow: "hidden",
+              flexShrink: 0,
+            }}>
+              <Icon size={22} color="white" />
+              {/* shimmer sweep */}
+              {hovered && <div style={{
+                position: "absolute", inset: 0,
+                background: "linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.4) 50%, transparent 70%)",
+                animation: "shimmer 0.6s ease forwards",
+              }} />}
+            </div>
+
+            {/* Badge */}
+            <div style={{
+              padding: "4px 10px", borderRadius: 99,
+              background: `${ws.color1}15`,
+              border: `1px solid ${ws.color1}30`,
+              fontSize: 11, fontWeight: 700, color: ws.color1,
+              letterSpacing: "0.04em",
+              transform: hovered ? "scale(1.05)" : "scale(1)",
+              transition: "transform 0.2s ease",
+            }}>
+              {ws.badge}
+            </div>
+          </div>
+
+          {/* Title */}
+          <h2 style={{
+            fontSize: 21, fontWeight: 800,
+            fontFamily: "'Plus Jakarta Sans', sans-serif",
+            color: "#fff",
+            marginBottom: 4, lineHeight: 1.2,
+          }}>{ws.title}</h2>
+
+          {/* Subtitle */}
+          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginBottom: 20 }}>{ws.subtitle}</p>
+
+          {/* Feature pills */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 24 }}>
+            {ws.features.map((f) => {
+              const FIcon = f.icon;
+              return (
+                <span key={f.label} style={{
+                  display: "inline-flex", alignItems: "center", gap: 4,
+                  padding: "5px 10px", borderRadius: 99,
+                  background: `${ws.color1}12`,
+                  border: `1px solid ${ws.color1}22`,
+                  fontSize: 11, fontWeight: 600,
+                  color: hovered ? ws.color1 : "rgba(255,255,255,0.5)",
+                  transition: "color 0.3s ease, border-color 0.3s ease",
+                }}>
+                  <FIcon size={9} />
+                  {f.label}
+                </span>
+              );
+            })}
+          </div>
+
+          {/* Divider */}
+          <div style={{
+            marginTop: "auto",
+            height: 1,
+            background: hovered
+              ? `linear-gradient(90deg, ${ws.color1}60, ${ws.color2}60)`
+              : "rgba(255,255,255,0.06)",
+            marginBottom: 18,
+            transition: "background 0.4s ease",
+          }} />
+
+          {/* CTA row */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{
+              fontSize: 13, fontWeight: 700,
+              background: hovered ? ws.gradient : "none",
+              WebkitBackgroundClip: hovered ? "text" : "unset",
+              WebkitTextFillColor: hovered ? "transparent" : "rgba(255,255,255,0.5)",
+              transition: "all 0.3s ease",
+            }}>
+              进入工作区
+            </span>
+            <div style={{
+              width: 32, height: 32, borderRadius: "50%",
+              background: hovered ? ws.gradient : "rgba(255,255,255,0.08)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              transform: hovered ? "translateX(4px) scale(1.12)" : "translateX(0) scale(1)",
+              transition: "all 0.3s cubic-bezier(0.34,1.56,0.64,1)",
+              boxShadow: hovered ? `0 4px 16px ${ws.color1}50` : "none",
+            }}>
+              <ArrowRight size={14} color="white" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function Landing() {
   const [mounted, setMounted] = useState(false);
-  const [hovered, setHovered] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
+  const mouseRef = useRef({ x: 0.5, y: 0.5 });
 
   useEffect(() => {
-    setMounted(true);
+    const t = setTimeout(() => setMounted(true), 50);
+    return () => clearTimeout(t);
+  }, []);
 
-    // Animated particle orbs on canvas
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d")!;
 
-    const resize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    };
+    const resize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
     resize();
     window.addEventListener("resize", resize);
 
+    const onMouse = (e: MouseEvent) => {
+      mouseRef.current = { x: e.clientX / window.innerWidth, y: e.clientY / window.innerHeight };
+    };
+    window.addEventListener("mousemove", onMouse);
+
+    // Stars
+    const stars = Array.from({ length: 80 }, () => ({
+      x: Math.random(), y: Math.random(),
+      r: Math.random() * 1.2 + 0.3,
+      alpha: Math.random() * 0.5 + 0.1,
+      speed: Math.random() * 0.0003 + 0.0001,
+      phase: Math.random() * Math.PI * 2,
+    }));
+
     const orbs = [
-      { x: 0.15, y: 0.2, r: 220, color: "rgba(102,126,234,0.13)", vx: 0.0003, vy: 0.0002 },
-      { x: 0.85, y: 0.75, r: 260, color: "rgba(168,85,247,0.10)", vx: -0.0002, vy: -0.0003 },
-      { x: 0.7, y: 0.15, r: 180, color: "rgba(118,75,162,0.09)", vx: -0.0003, vy: 0.0004 },
-      { x: 0.2, y: 0.8, r: 150, color: "rgba(79,110,247,0.08)", vx: 0.0004, vy: -0.0002 },
+      { x: 0.1, y: 0.25, r: 380, c: [79, 110, 247], speed: 0.15 },
+      { x: 0.88, y: 0.7,  r: 420, c: [168, 85, 247], speed: 0.12 },
+      { x: 0.6,  y: 0.1,  r: 280, c: [118, 75, 162], speed: 0.18 },
+      { x: 0.25, y: 0.85, r: 240, c: [236, 72, 153], speed: 0.1  },
     ];
 
-    let t = 0;
+    let frame = 0;
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      t += 1;
-      orbs.forEach((orb) => {
-        const x = (orb.x + Math.sin(t * orb.vx * 100) * 0.06) * canvas.width;
-        const y = (orb.y + Math.cos(t * orb.vy * 100) * 0.06) * canvas.height;
-        const grad = ctx.createRadialGradient(x, y, 0, x, y, orb.r);
-        grad.addColorStop(0, orb.color);
-        grad.addColorStop(1, "transparent");
-        ctx.fillStyle = grad;
+      frame++;
+
+      // Moving orbs
+      orbs.forEach((orb, i) => {
+        const t = frame * orb.speed * 0.005;
+        const mx = (mouseRef.current.x - 0.5) * 0.04;
+        const my = (mouseRef.current.y - 0.5) * 0.04;
+        const ox = (orb.x + Math.sin(t + i) * 0.08 + mx) * canvas.width;
+        const oy = (orb.y + Math.cos(t * 0.7 + i) * 0.06 + my) * canvas.height;
+        const g = ctx.createRadialGradient(ox, oy, 0, ox, oy, orb.r);
+        const [r, c2, b] = orb.c;
+        g.addColorStop(0, `rgba(${r},${c2},${b},0.18)`);
+        g.addColorStop(0.5, `rgba(${r},${c2},${b},0.06)`);
+        g.addColorStop(1, "transparent");
+        ctx.fillStyle = g;
         ctx.beginPath();
-        ctx.arc(x, y, orb.r, 0, Math.PI * 2);
+        ctx.arc(ox, oy, orb.r, 0, Math.PI * 2);
         ctx.fill();
       });
+
+      // Twinkling stars
+      stars.forEach((s) => {
+        const t2 = frame * s.speed;
+        const alpha = s.alpha * (0.5 + 0.5 * Math.sin(t2 * 10 + s.phase));
+        ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+        ctx.beginPath();
+        ctx.arc(s.x * canvas.width, s.y * canvas.height, s.r, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
       animRef.current = requestAnimationFrame(draw);
     };
     draw();
 
     return () => {
       window.removeEventListener("resize", resize);
+      window.removeEventListener("mousemove", onMouse);
       cancelAnimationFrame(animRef.current);
     };
   }, []);
 
-  return (
-    <div
-      className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden"
-      style={{ background: "linear-gradient(145deg, #ECEFFE 0%, #F3EFFE 40%, #EEF1FB 100%)", fontFamily: "'Inter', sans-serif" }}
-    >
-      {/* Animated background canvas */}
-      <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }} />
+  const anim = (delay = 0) => ({
+    opacity: mounted ? 1 : 0,
+    transform: mounted ? "translateY(0) scale(1)" : "translateY(20px) scale(0.97)",
+    transition: `opacity 0.7s ease ${delay}s, transform 0.7s cubic-bezier(0.34,1.56,0.64,1) ${delay}s`,
+  });
 
-      {/* Mesh grid overlay */}
-      <div className="absolute inset-0 pointer-events-none" style={{
-        backgroundImage: "linear-gradient(rgba(102,126,234,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(102,126,234,0.04) 1px, transparent 1px)",
-        backgroundSize: "48px 48px",
-        zIndex: 1,
+  return (
+    <div style={{
+      minHeight: "100vh", display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center",
+      background: "linear-gradient(160deg, #07080F 0%, #0B0C18 40%, #0E0B1A 100%)",
+      fontFamily: "'Inter', sans-serif", position: "relative", overflow: "hidden",
+      padding: "40px 24px",
+    }}>
+      {/* Animated canvas bg */}
+      <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0 }} />
+
+      {/* Subtle grid */}
+      <div style={{
+        position: "absolute", inset: 0, zIndex: 1, pointerEvents: "none",
+        backgroundImage: "linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)",
+        backgroundSize: "56px 56px",
+        maskImage: "radial-gradient(ellipse 80% 80% at 50% 50%, black 40%, transparent 100%)",
       }} />
 
       {/* Content */}
-      <div className="relative flex flex-col items-center w-full px-6" style={{ zIndex: 2 }}>
+      <div style={{ position: "relative", zIndex: 2, width: "100%", maxWidth: 800, display: "flex", flexDirection: "column", alignItems: "center" }}>
 
-        {/* Logo badge */}
-        <div
-          className="flex items-center gap-2.5 px-4 py-2 rounded-full mb-10"
-          style={{
-            background: "rgba(255,255,255,0.8)",
-            border: "1px solid rgba(102,126,234,0.2)",
-            boxShadow: "0 2px 16px rgba(102,126,234,0.12)",
-            backdropFilter: "blur(12px)",
-            opacity: mounted ? 1 : 0,
-            transform: mounted ? "translateY(0)" : "translateY(-12px)",
-            transition: "all 0.6s cubic-bezier(0.34,1.56,0.64,1)",
-          }}
-        >
-          <div className="w-6 h-6 rounded-lg flex items-center justify-center"
-            style={{ background: "linear-gradient(135deg,#667EEA,#764BA2)" }}>
-            <Sparkles size={12} className="text-white" />
+        {/* Badge */}
+        <div style={{
+          ...anim(0),
+          display: "inline-flex", alignItems: "center", gap: 8,
+          padding: "6px 14px 6px 8px", borderRadius: 99, marginBottom: 40,
+          background: "rgba(255,255,255,0.06)",
+          border: "1px solid rgba(255,255,255,0.1)",
+          backdropFilter: "blur(12px)",
+        }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: 10,
+            background: "linear-gradient(135deg,#667EEA,#764BA2)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            boxShadow: "0 4px 12px rgba(102,126,234,0.5)",
+          }}>
+            <Sparkles size={13} color="white" />
           </div>
-          <span className="text-[13px] font-bold" style={{ color: "#12152A" }}>AI Studio</span>
-          <span className="text-[11px] text-muted-foreground">· 投放素材平台</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.85)" }}>AI Studio</span>
+          <span style={{ width: 1, height: 14, background: "rgba(255,255,255,0.15)" }} />
+          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>投放素材平台</span>
         </div>
 
         {/* Headline */}
-        <div
-          className="text-center mb-14"
-          style={{
-            opacity: mounted ? 1 : 0,
-            transform: mounted ? "translateY(0)" : "translateY(16px)",
-            transition: "all 0.7s cubic-bezier(0.34,1.56,0.64,1) 0.08s",
-          }}
-        >
-          <h1
-            className="font-black tracking-tight mb-3 leading-none"
-            style={{
-              fontSize: "clamp(38px, 6vw, 56px)",
-              fontFamily: "'Plus Jakarta Sans', sans-serif",
-              background: "linear-gradient(135deg, #12152A 0%, #4F6EF7 50%, #764BA2 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-            }}
-          >
+        <div style={{ ...anim(0.1), textAlign: "center", marginBottom: 56 }}>
+          <h1 style={{
+            fontSize: "clamp(42px, 7vw, 64px)", fontWeight: 900,
+            fontFamily: "'Plus Jakarta Sans', sans-serif",
+            lineHeight: 1.1, marginBottom: 14,
+            background: "linear-gradient(135deg, #fff 0%, #C4C9FF 40%, #B57BFF 70%, #FF6EC7 100%)",
+            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+            filter: "drop-shadow(0 0 40px rgba(168,85,247,0.3))",
+          }}>
             投放素材平台
           </h1>
-          <p className="text-[15px]" style={{ color: "#8C90AB" }}>
+          <p style={{ fontSize: 15, color: "rgba(255,255,255,0.4)", letterSpacing: "0.02em" }}>
             选择工作区，开始高效创作
           </p>
         </div>
 
         {/* Cards */}
-        <div
-          className="grid grid-cols-1 sm:grid-cols-2 gap-5 w-full"
-          style={{
-            maxWidth: 760,
-            opacity: mounted ? 1 : 0,
-            transform: mounted ? "translateY(0)" : "translateY(24px)",
-            transition: "all 0.8s cubic-bezier(0.34,1.56,0.64,1) 0.16s",
-          }}
-        >
-          {WORKSPACES.map((ws, i) => {
-            const Icon = ws.icon;
-            const isHovered = hovered === ws.id;
-            return (
-              <button
-                key={ws.id}
-                onClick={() => navigate(ws.path)}
-                onMouseEnter={() => setHovered(ws.id)}
-                onMouseLeave={() => setHovered(null)}
-                className="group text-left flex flex-col"
-                style={{
-                  borderRadius: 24,
-                  padding: "28px 28px 24px",
-                  background: isHovered
-                    ? "rgba(255,255,255,0.98)"
-                    : "rgba(255,255,255,0.85)",
-                  backdropFilter: "blur(20px)",
-                  border: isHovered
-                    ? `1.5px solid ${ws.accentColor}35`
-                    : "1.5px solid rgba(255,255,255,0.9)",
-                  boxShadow: isHovered
-                    ? `0 0 0 4px ${ws.accentColor}10, 0 8px 40px ${ws.accentColor}22, 0 2px 8px rgba(18,21,42,0.06)`
-                    : "0 2px 16px rgba(18,21,42,0.06), 0 1px 4px rgba(18,21,42,0.04)",
-                  transform: isHovered ? "translateY(-4px) scale(1.005)" : "translateY(0) scale(1)",
-                  transition: "all 0.25s cubic-bezier(0.34,1.56,0.64,1)",
-                  opacity: mounted ? 1 : 0,
-                  animationDelay: `${i * 0.08}s`,
-                }}
-              >
-                {/* Card top row */}
-                <div className="flex items-start justify-between mb-5">
-                  {/* Icon */}
-                  <div
-                    className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
-                    style={{
-                      background: ws.iconGradient,
-                      boxShadow: isHovered
-                        ? `0 8px 24px ${ws.accentColor}45`
-                        : `0 4px 12px ${ws.accentColor}30`,
-                      transform: isHovered ? "scale(1.06) rotate(-3deg)" : "scale(1) rotate(0deg)",
-                      transition: "all 0.3s cubic-bezier(0.34,1.56,0.64,1)",
-                    }}
-                  >
-                    <Icon size={24} className="text-white" />
-                  </div>
-
-                  {/* Stat badge */}
-                  <div className="flex flex-col items-end">
-                    <span className="text-[26px] font-black leading-none"
-                      style={{ color: ws.accentColor, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-                      {ws.stat.value}
-                    </span>
-                    <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: ws.accentColor + "88" }}>
-                      {ws.stat.label}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Title & subtitle */}
-                <h2 className="text-[20px] font-bold mb-1 leading-tight"
-                  style={{ color: "#12152A", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-                  {ws.title}
-                </h2>
-                <p className="text-[13px] mb-5" style={{ color: "#8C90AB" }}>{ws.subtitle}</p>
-
-                {/* Feature pills */}
-                <div className="flex flex-wrap gap-1.5 mb-6">
-                  {ws.features.map((f) => {
-                    const FIcon = f.icon;
-                    return (
-                      <span key={f.label}
-                        className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold"
-                        style={{
-                          background: ws.accentColor + "10",
-                          color: ws.accentColor,
-                          border: `1px solid ${ws.accentColor}20`,
-                        }}>
-                        <FIcon size={10} />
-                        {f.label}
-                      </span>
-                    );
-                  })}
-                </div>
-
-                {/* Divider */}
-                <div className="mt-auto pt-4" style={{ borderTop: `1px solid ${ws.accentColor}12` }}>
-                  {/* CTA */}
-                  <div
-                    className="flex items-center gap-2 text-[13px] font-bold"
-                    style={{ color: ws.accentColor }}
-                  >
-                    <span>进入工作区</span>
-                    <div
-                      className="w-6 h-6 rounded-full flex items-center justify-center"
-                      style={{
-                        background: ws.iconGradient,
-                        transform: isHovered ? "translateX(4px)" : "translateX(0)",
-                        transition: "transform 0.25s ease",
-                        boxShadow: `0 2px 8px ${ws.accentColor}40`,
-                      }}
-                    >
-                      <ArrowRight size={12} className="text-white" />
-                    </div>
-                  </div>
-                </div>
-              </button>
-            );
-          })}
+        <div style={{
+          ...anim(0.2),
+          display: "flex", gap: 20, width: "100%",
+          flexDirection: "row",
+        }}>
+          {WORKSPACES.map((ws) => (
+            <Card3D key={ws.id} ws={ws} onEnter={() => {}} />
+          ))}
         </div>
 
         {/* Footer */}
-        <div
-          className="mt-12 flex items-center gap-3"
-          style={{
-            opacity: mounted ? 0.45 : 0,
-            transition: "opacity 1s ease 0.4s",
-          }}
-        >
-          <div className="h-px w-12" style={{ background: "linear-gradient(90deg, transparent, #8C90AB)" }} />
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: "#8C90AB" }}>
+        <div style={{ ...anim(0.35), marginTop: 48, display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ height: 1, width: 40, background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.15))" }} />
+          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.22em", color: "rgba(255,255,255,0.2)", textTransform: "uppercase" }}>
             Select Your Workspace
-          </p>
-          <div className="h-px w-12" style={{ background: "linear-gradient(90deg, #8C90AB, transparent)" }} />
+          </span>
+          <div style={{ height: 1, width: 40, background: "linear-gradient(90deg, rgba(255,255,255,0.15), transparent)" }} />
         </div>
       </div>
 
       <style>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-6px); }
+        @keyframes shimmer {
+          0%   { transform: translateX(-100%) skewX(-15deg); }
+          100% { transform: translateX(200%) skewX(-15deg); }
         }
       `}</style>
     </div>
