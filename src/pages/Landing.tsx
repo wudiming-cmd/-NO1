@@ -244,16 +244,32 @@ function Card3D({ ws, onEnter }: { ws: typeof WORKSPACES[0]; onEnter: () => void
   );
 }
 
+// Meteor type
+type Meteor = { x: number; y: number; vx: number; vy: number; life: number; maxLife: number; len: number; w: number; hue: number };
+
+function spawnMeteor(W: number, H: number): Meteor {
+  // Spawn from top or right edge
+  const fromTop = Math.random() > 0.4;
+  const x = fromTop ? Math.random() * W * 1.2 : W + 50;
+  const y = fromTop ? -20 : Math.random() * H * 0.4;
+  const angle = (215 + Math.random() * 25) * Math.PI / 180; // mostly down-left
+  const speed = 12 + Math.random() * 10;
+  const len = 140 + Math.random() * 160;
+  const hue = Math.random() > 0.5 ? 240 : 280; // blue or purple
+  return { x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, life: 0, maxLife: 55 + Math.random() * 25, len, w: 2.5 + Math.random() * 2, hue };
+}
+
 export default function Landing() {
   const [mounted, setMounted] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
-  const mouseRef = useRef({ x: 0.5, y: 0.5 });
+  const mouseRef = useRef({ x: -999, y: -999 }); // px coords
+  const cursorRef = useRef<HTMLDivElement>(null);
+  const cursorDotRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 50);
-    // Auto-show modal on first visit per session
     const seen = sessionStorage.getItem("wn_seen");
     if (!seen) {
       setTimeout(() => setShowModal(true), 600);
@@ -271,59 +287,123 @@ export default function Landing() {
     resize();
     window.addEventListener("resize", resize);
 
+    // ── Cursor glow: direct DOM for zero-lag ──────────────────────────────────
     const onMouse = (e: MouseEvent) => {
-      mouseRef.current = { x: e.clientX / window.innerWidth, y: e.clientY / window.innerHeight };
+      mouseRef.current = { x: e.clientX, y: e.clientY };
+      if (cursorRef.current) {
+        cursorRef.current.style.left = e.clientX + "px";
+        cursorRef.current.style.top  = e.clientY + "px";
+        cursorRef.current.style.opacity = "1";
+      }
+      if (cursorDotRef.current) {
+        cursorDotRef.current.style.left = e.clientX + "px";
+        cursorDotRef.current.style.top  = e.clientY + "px";
+      }
     };
+    const onLeave = () => { if (cursorRef.current) cursorRef.current.style.opacity = "0"; };
     window.addEventListener("mousemove", onMouse);
+    document.addEventListener("mouseleave", onLeave);
 
-    // Stars
-    const stars = Array.from({ length: 80 }, () => ({
+    // ── Stars ─────────────────────────────────────────────────────────────────
+    const stars = Array.from({ length: 100 }, () => ({
       x: Math.random(), y: Math.random(),
-      r: Math.random() * 1.2 + 0.3,
-      alpha: Math.random() * 0.5 + 0.1,
-      speed: Math.random() * 0.0003 + 0.0001,
+      r: Math.random() * 1.4 + 0.2,
+      alpha: Math.random() * 0.6 + 0.1,
+      speed: Math.random() * 0.0004 + 0.0001,
       phase: Math.random() * Math.PI * 2,
     }));
 
+    // ── Background orbs ───────────────────────────────────────────────────────
     const orbs = [
-      { x: 0.1, y: 0.25, r: 380, c: [79, 110, 247], speed: 0.15 },
-      { x: 0.88, y: 0.7,  r: 420, c: [168, 85, 247], speed: 0.12 },
-      { x: 0.6,  y: 0.1,  r: 280, c: [118, 75, 162], speed: 0.18 },
-      { x: 0.25, y: 0.85, r: 240, c: [236, 72, 153], speed: 0.1  },
+      { x: 0.1,  y: 0.25, r: 380, c: [79, 110, 247],  speed: 0.15 },
+      { x: 0.88, y: 0.7,  r: 420, c: [168, 85, 247],  speed: 0.12 },
+      { x: 0.6,  y: 0.1,  r: 280, c: [118, 75, 162],  speed: 0.18 },
+      { x: 0.25, y: 0.85, r: 240, c: [236, 72, 153],  speed: 0.10 },
     ];
+
+    // ── Meteors ───────────────────────────────────────────────────────────────
+    const meteors: Meteor[] = [];
+    let lastMeteor = 0;
+    const METEOR_INTERVAL = 90; // frames between spawns (~1.5s at 60fps)
 
     let frame = 0;
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       frame++;
+      const W = canvas.width, H = canvas.height;
 
-      // Moving orbs
+      // Orbs
       orbs.forEach((orb, i) => {
         const t = frame * orb.speed * 0.005;
-        const mx = (mouseRef.current.x - 0.5) * 0.04;
-        const my = (mouseRef.current.y - 0.5) * 0.04;
-        const ox = (orb.x + Math.sin(t + i) * 0.08 + mx) * canvas.width;
-        const oy = (orb.y + Math.cos(t * 0.7 + i) * 0.06 + my) * canvas.height;
+        const mx = ((mouseRef.current.x / W) - 0.5) * 0.04;
+        const my = ((mouseRef.current.y / H) - 0.5) * 0.04;
+        const ox = (orb.x + Math.sin(t + i) * 0.08 + mx) * W;
+        const oy = (orb.y + Math.cos(t * 0.7 + i) * 0.06 + my) * H;
         const g = ctx.createRadialGradient(ox, oy, 0, ox, oy, orb.r);
         const [r, c2, b] = orb.c;
-        g.addColorStop(0, `rgba(${r},${c2},${b},0.18)`);
+        g.addColorStop(0,   `rgba(${r},${c2},${b},0.2)`);
         g.addColorStop(0.5, `rgba(${r},${c2},${b},0.06)`);
-        g.addColorStop(1, "transparent");
+        g.addColorStop(1,   "transparent");
         ctx.fillStyle = g;
         ctx.beginPath();
         ctx.arc(ox, oy, orb.r, 0, Math.PI * 2);
         ctx.fill();
       });
 
-      // Twinkling stars
+      // Stars
       stars.forEach((s) => {
         const t2 = frame * s.speed;
         const alpha = s.alpha * (0.5 + 0.5 * Math.sin(t2 * 10 + s.phase));
         ctx.fillStyle = `rgba(255,255,255,${alpha})`;
         ctx.beginPath();
-        ctx.arc(s.x * canvas.width, s.y * canvas.height, s.r, 0, Math.PI * 2);
+        ctx.arc(s.x * W, s.y * H, s.r, 0, Math.PI * 2);
         ctx.fill();
       });
+
+      // Spawn meteors
+      if (frame - lastMeteor > METEOR_INTERVAL) {
+        meteors.push(spawnMeteor(W, H));
+        if (Math.random() > 0.6) meteors.push(spawnMeteor(W, H)); // occasional double
+        lastMeteor = frame;
+      }
+
+      // Draw & update meteors
+      for (let i = meteors.length - 1; i >= 0; i--) {
+        const m = meteors[i];
+        m.x += m.vx; m.y += m.vy; m.life++;
+        const progress = m.life / m.maxLife;
+        const alpha = progress < 0.15 ? progress / 0.15 : 1 - (progress - 0.15) / 0.85;
+        if (alpha <= 0 || m.life >= m.maxLife) { meteors.splice(i, 1); continue; }
+
+        // Trail: gradient line
+        const tailX = m.x - m.vx / Math.hypot(m.vx, m.vy) * m.len;
+        const tailY = m.y - m.vy / Math.hypot(m.vx, m.vy) * m.len;
+        const grad = ctx.createLinearGradient(tailX, tailY, m.x, m.y);
+        grad.addColorStop(0, `hsla(${m.hue},100%,90%,0)`);
+        grad.addColorStop(0.7, `hsla(${m.hue},80%,80%,${alpha * 0.3})`);
+        grad.addColorStop(1,   `hsla(${m.hue},60%,100%,${alpha})`);
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = m.w;
+        ctx.lineCap = "round";
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = `hsla(${m.hue},100%,80%,0.8)`;
+        ctx.beginPath();
+        ctx.moveTo(tailX, tailY);
+        ctx.lineTo(m.x, m.y);
+        ctx.stroke();
+
+        // Bright head glow
+        const headG = ctx.createRadialGradient(m.x, m.y, 0, m.x, m.y, 10);
+        headG.addColorStop(0, `rgba(255,255,255,${alpha * 0.95})`);
+        headG.addColorStop(0.4, `hsla(${m.hue},100%,90%,${alpha * 0.5})`);
+        headG.addColorStop(1, "transparent");
+        ctx.fillStyle = headG;
+        ctx.beginPath();
+        ctx.arc(m.x, m.y, 10, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.shadowBlur = 0;
+      }
 
       animRef.current = requestAnimationFrame(draw);
     };
@@ -332,6 +412,7 @@ export default function Landing() {
     return () => {
       window.removeEventListener("resize", resize);
       window.removeEventListener("mousemove", onMouse);
+      document.removeEventListener("mouseleave", onLeave);
       cancelAnimationFrame(animRef.current);
     };
   }, []);
@@ -349,9 +430,31 @@ export default function Landing() {
       background: "linear-gradient(160deg, #07080F 0%, #0B0C18 40%, #0E0B1A 100%)",
       fontFamily: "'Inter', sans-serif", position: "relative", overflow: "hidden",
       padding: "40px 24px",
+      cursor: "none",
     }}>
       {/* Animated canvas bg */}
       <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0 }} />
+
+      {/* ── Cursor: outer glow ── */}
+      <div ref={cursorRef} style={{
+        position: "fixed", pointerEvents: "none", zIndex: 9999,
+        width: 360, height: 360,
+        transform: "translate(-50%,-50%)",
+        background: "radial-gradient(circle, rgba(139,92,246,0.18) 0%, rgba(79,110,247,0.10) 35%, transparent 70%)",
+        borderRadius: "50%",
+        opacity: 0,
+        transition: "opacity 0.3s ease",
+        mixBlendMode: "screen",
+      }} />
+      {/* ── Cursor: sharp dot ── */}
+      <div ref={cursorDotRef} style={{
+        position: "fixed", pointerEvents: "none", zIndex: 10000,
+        width: 10, height: 10,
+        transform: "translate(-50%,-50%)",
+        background: "white",
+        borderRadius: "50%",
+        boxShadow: "0 0 0 2px rgba(139,92,246,0.6), 0 0 16px rgba(139,92,246,0.9), 0 0 32px rgba(79,110,247,0.5)",
+      }} />
 
       {/* Subtle grid */}
       <div style={{
@@ -458,6 +561,7 @@ export default function Landing() {
           0%   { transform: translateX(-100%) skewX(-15deg); }
           100% { transform: translateX(200%) skewX(-15deg); }
         }
+        * { cursor: none !important; }
       `}</style>
 
       {/* What's New Modal */}
