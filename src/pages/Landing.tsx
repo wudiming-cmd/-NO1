@@ -247,6 +247,14 @@ function Card3D({ ws, onEnter }: { ws: typeof WORKSPACES[0]; onEnter: () => void
 // Meteor type
 type Meteor = { x: number; y: number; vx: number; vy: number; life: number; maxLife: number; len: number; w: number; hue: number };
 
+// Particle type (cursor emission)
+type Particle = {
+  x: number; y: number;
+  vx: number; vy: number;
+  life: number; maxLife: number;
+  size: number; hue: number;
+};
+
 function spawnMeteor(W: number, H: number): Meteor {
   // Spawn from top or right edge
   const fromTop = Math.random() > 0.4;
@@ -287,18 +295,46 @@ export default function Landing() {
     resize();
     window.addEventListener("resize", resize);
 
+    // ── Particles ─────────────────────────────────────────────────────────────
+    const particles: Particle[] = [];
+    const lastPx = { x: -999, y: -999 };
+    const PARTICLE_HUES = [240, 255, 270, 285, 300, 315]; // blue→purple→pink
+
+    const spawnParticles = (mx: number, my: number, dx: number, dy: number) => {
+      const spd = Math.sqrt(dx * dx + dy * dy);
+      if (spd < 1.5) return;
+      const count = Math.min(Math.ceil(spd * 0.55), 12);
+      for (let i = 0; i < count; i++) {
+        const angle = Math.atan2(dy, dx) + Math.PI + (Math.random() - 0.5) * 2.2;
+        const pSpeed = (0.4 + Math.random() * 3.8) * (spd * 0.05 + 0.6);
+        particles.push({
+          x: mx + (Math.random() - 0.5) * 8,
+          y: my + (Math.random() - 0.5) * 8,
+          vx: Math.cos(angle) * pSpeed,
+          vy: Math.sin(angle) * pSpeed - Math.random() * 2,
+          life: 0,
+          maxLife: 20 + Math.random() * 30,
+          size: 1.0 + Math.random() * 3.0,
+          hue: PARTICLE_HUES[Math.floor(Math.random() * PARTICLE_HUES.length)],
+        });
+      }
+    };
+
     // ── Cursor glow: direct DOM for zero-lag ──────────────────────────────────
     const onMouse = (e: MouseEvent) => {
-      mouseRef.current = { x: e.clientX, y: e.clientY };
+      const mx = e.clientX, my = e.clientY;
+      mouseRef.current = { x: mx, y: my };
       if (cursorRef.current) {
-        cursorRef.current.style.left = e.clientX + "px";
-        cursorRef.current.style.top  = e.clientY + "px";
+        cursorRef.current.style.left = mx + "px";
+        cursorRef.current.style.top  = my + "px";
         cursorRef.current.style.opacity = "1";
       }
       if (cursorDotRef.current) {
-        cursorDotRef.current.style.left = e.clientX + "px";
-        cursorDotRef.current.style.top  = e.clientY + "px";
+        cursorDotRef.current.style.left = mx + "px";
+        cursorDotRef.current.style.top  = my + "px";
       }
+      spawnParticles(mx, my, mx - lastPx.x, my - lastPx.y);
+      lastPx.x = mx; lastPx.y = my;
     };
     const onLeave = () => { if (cursorRef.current) cursorRef.current.style.opacity = "0"; };
     window.addEventListener("mousemove", onMouse);
@@ -402,6 +438,43 @@ export default function Landing() {
         ctx.arc(m.x, m.y, 10, 0, Math.PI * 2);
         ctx.fill();
 
+        ctx.shadowBlur = 0;
+      }
+
+      // ── Cursor Particles ──────────────────────────────────────────────────────
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        // Physics
+        p.x  += p.vx;
+        p.y  += p.vy;
+        p.vy += 0.09;    // gravity
+        p.vx *= 0.94;    // air resistance
+        p.vy *= 0.94;
+        p.life++;
+
+        const progress = p.life / p.maxLife;
+        const alpha = Math.pow(1 - progress, 1.8);
+        const sz = p.size * (1 - progress * 0.6);
+
+        if (alpha <= 0.01 || p.life >= p.maxLife) { particles.splice(i, 1); continue; }
+
+        // Outer glow
+        const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, sz * 3.5);
+        g.addColorStop(0,   `hsla(${p.hue},100%,85%,${alpha * 0.9})`);
+        g.addColorStop(0.4, `hsla(${p.hue},90%,65%,${alpha * 0.45})`);
+        g.addColorStop(1,   "transparent");
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, sz * 3.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Bright core
+        ctx.fillStyle = `hsla(${p.hue},80%,98%,${alpha})`;
+        ctx.shadowBlur = 6;
+        ctx.shadowColor = `hsla(${p.hue},100%,80%,${alpha})`;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, sz * 0.5, 0, Math.PI * 2);
+        ctx.fill();
         ctx.shadowBlur = 0;
       }
 
