@@ -1453,7 +1453,7 @@ export default function App() {
   return (
     <div style={{ display: 'flex', width: '100vw', height: '100vh', background: 'linear-gradient(160deg, #07080F 0%, #0B0C18 40%, #0E0B1A 100%)', color: '#fff', fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif" }}>
       {/* 左侧：模块库 */}
-      <div style={{ width: '240px', background: 'rgba(8,9,18,0.97)', borderRight: '1px solid rgba(139,92,246,0.15)', display: 'flex', flexDirection: 'column', boxShadow: '2px 0 20px rgba(0,0,0,0.3)' }}>
+      <div style={{ width: '220px', background: 'rgba(8,9,18,0.97)', borderRight: '1px solid rgba(139,92,246,0.15)', display: 'flex', flexDirection: 'column', boxShadow: '2px 0 20px rgba(0,0,0,0.3)' }}>
         {/* Header */}
         <div style={{ padding: '10px 12px 8px', background: 'linear-gradient(135deg, rgba(79,110,247,0.25) 0%, rgba(139,92,246,0.2) 100%)', borderBottom: '1px solid rgba(139,92,246,0.2)', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1629,72 +1629,93 @@ export default function App() {
       </div>
 
       {/* 中间：手机预览画板 */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'radial-gradient(ellipse at center, #0D0E1F 0%, #07080F 100%)' }}>
-        {/* 顶部工具栏 */}
-        <div style={{ height: 44, borderBottom: '1px solid rgba(139,92,246,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', flexShrink: 0, background: 'rgba(5,6,14,0.8)', backdropFilter: 'blur(12px)' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'radial-gradient(ellipse at 50% 40%, #0D0E22 0%, #07080F 100%)' }}>
+
+        {/* ── 顶部工具栏（精简）── */}
+        <div style={{
+          height: 48, borderBottom: '1px solid rgba(139,92,246,0.1)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '0 16px', flexShrink: 0,
+          background: 'rgba(5,6,14,0.9)', backdropFilter: 'blur(16px)',
+          position: 'relative',
+        }}>
+          {/* 左：编辑工具 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {/* 撤销 */}
+            <button onClick={handleUndo} disabled={historyIndex <= 0} title="撤销 Ctrl+Z"
+              style={{
+                width: 30, height: 30, borderRadius: 8,
+                border: '1px solid rgba(255,255,255,0.07)',
+                background: 'rgba(255,255,255,0.04)',
+                color: historyIndex <= 0 ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.65)',
+                cursor: historyIndex <= 0 ? 'not-allowed' : 'pointer',
+                fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              }}>↩</button>
+
+            <div style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.07)', flexShrink: 0 }} />
+
+            {/* 网格 toggle */}
+            <button onClick={() => setShowGrid(s => !s)}
+              style={{
+                height: 30, padding: '0 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
+                border: `1px solid ${showGrid ? 'rgba(139,92,246,0.5)' : 'rgba(255,255,255,0.07)'}`,
+                background: showGrid ? 'rgba(139,92,246,0.14)' : 'rgba(255,255,255,0.03)',
+                color: showGrid ? '#C4B5FD' : 'rgba(255,255,255,0.5)',
+              }}>网格</button>
+
+            {/* + 新增模块 */}
+            <button onClick={handleAddModule}
+              style={{
+                height: 30, padding: '0 12px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer', flexShrink: 0,
+                border: '1px solid rgba(139,92,246,0.4)',
+                background: 'rgba(139,92,246,0.12)', color: '#C4B5FD',
+              }}>+ 新增</button>
+
+            {/* 全选批量 */}
             <button
-              onClick={handleUndo}
-              title="撤销 (Ctrl+Z)"
-              disabled={historyIndex <= 0}
-              style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', color: historyIndex <= 0 ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.75)', cursor: historyIndex <= 0 ? 'not-allowed' : 'pointer', fontSize: 12, fontWeight: 600 }}
-            >
-              ↩ 撤销
-            </button>
-            <button
-              onClick={() => setShowGrid(s => !s)}
-              style={{ padding: '5px 10px', borderRadius: 6, border: `1px solid ${showGrid ? 'rgba(139,92,246,0.5)' : 'rgba(255,255,255,0.08)'}`, background: showGrid ? 'rgba(139,92,246,0.12)' : 'rgba(255,255,255,0.04)', color: showGrid ? '#C4B5FD' : 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
-            >
-              {showGrid ? '隐藏网格' : '显示网格'}
-            </button>
-            <button
-              onClick={handleAddModule}
-              style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid rgba(139,92,246,0.35)', background: 'rgba(139,92,246,0.12)', color: '#C4B5FD', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
-            >
-              + 新增模块
-            </button>
-            <button
-              onClick={() => {
-                setSelectedModuleIds(modules.map(m => m.id));
-                setSelectedModuleId(null);
-                setSelectedTab('batch');
-              }}
-              title="全部选中后可批量修改颜色、动画等"
-              style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid rgba(168,85,247,0.35)', background: selectedModuleIds.length === modules.length && modules.length > 0 ? 'rgba(168,85,247,0.22)' : 'rgba(168,85,247,0.08)', color: '#E9D5FF', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
-            >
-              ☑ 全部选中
-            </button>
+              onClick={() => { setSelectedModuleIds(modules.map(m => m.id)); setSelectedModuleId(null); setSelectedTab('batch'); }}
+              style={{
+                height: 30, padding: '0 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
+                border: `1px solid ${selectedModuleIds.length > 0 ? 'rgba(168,85,247,0.5)' : 'rgba(168,85,247,0.2)'}`,
+                background: selectedModuleIds.length > 0 ? 'rgba(168,85,247,0.18)' : 'rgba(168,85,247,0.05)',
+                color: '#D8B4FE',
+              }}>全选</button>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <button
-              onClick={() => exportViaCanvas('phone-canvas')}
-              style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.1)', color: '#34d399', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
-            >
-              快速保存
-            </button>
-            <button
-              onClick={() => setShowExportDialog(true)}
-              style={{ padding: '5px 12px', borderRadius: 6, background: 'linear-gradient(135deg,#4F6EF7,#8B5CF6)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 5 }}
-            >
-              <Download size={12} />
-              高清导出
-            </button>
+
+          {/* 中：标题（绝对居中） */}
+          <div style={{
+            position: 'absolute', left: '50%', top: '50%',
+            transform: 'translate(-50%,-50%)',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', pointerEvents: 'none',
+          }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.6)', letterSpacing: '0.02em', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+              画布预览
+            </span>
+            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', marginTop: 1 }}>
+              {modules.length} 模块 · {Math.round(zoom * 100)}%
+            </span>
           </div>
+
+          {/* 右：历史 */}
+          <button onClick={() => setHistoryOpen(s => !s)}
+            style={{
+              height: 30, padding: '0 12px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+              border: `1px solid ${historyOpen ? 'rgba(139,92,246,0.4)' : 'rgba(255,255,255,0.07)'}`,
+              background: historyOpen ? 'rgba(139,92,246,0.1)' : 'rgba(255,255,255,0.03)',
+              color: historyOpen ? '#C4B5FD' : 'rgba(255,255,255,0.45)',
+            }}>历史</button>
         </div>
 
-        {/* 模块快速导航 */}
-        <ModuleQuickNav
-          modules={modules}
-          selectedModuleId={selectedModuleId}
-          selectedModuleIds={selectedModuleIds}
-          onSelect={(id) => {
-            setSelectedModuleId(id);
-            setSelectedModuleIds([]);
-            setSelectedTab('module');
-          }}
-        />
+        {/* 画布区域 */}
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden', position: 'relative' }}>
 
-        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
+          {/* 背景网点装饰 */}
+          <div style={{
+            position: 'absolute', inset: 0, pointerEvents: 'none',
+            backgroundImage: 'radial-gradient(rgba(139,92,246,0.08) 1px, transparent 1px)',
+            backgroundSize: '32px 32px',
+            maskImage: 'radial-gradient(ellipse 70% 70% at 50% 50%, black 30%, transparent 100%)',
+          }} />
         <div
           id="phone-canvas"
           ref={previewRef}
@@ -2161,13 +2182,20 @@ export default function App() {
       </div>
 
       {/* 右侧：编辑面板 */}
-      <div style={{ width: '400px', background: 'rgba(8,9,18,0.97)', color: '#fff', display: 'flex', flexDirection: 'column', boxShadow: '-1px 0 0 rgba(139,92,246,0.15)' }}>
+      <div style={{ width: '340px', background: 'rgba(8,9,18,0.97)', color: '#fff', display: 'flex', flexDirection: 'column', boxShadow: '-1px 0 0 rgba(139,92,246,0.15)' }}>
         <div style={{ padding: '16px 20px 14px', borderBottom: '1px solid rgba(139,92,246,0.15)', background: 'linear-gradient(135deg, rgba(79,110,247,0.2) 0%, rgba(139,92,246,0.15) 100%)' }}>
-          <div style={{ fontSize: '14px', fontWeight: 800, letterSpacing: '-0.2px', color: '#fff', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-            {selectedTab === 'module' ? '模块编辑' : selectedTab === 'batch' ? '⚡ 批量操作' : '画布设置'}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{
+              width: 6, height: 6, borderRadius: '50%',
+              background: selectedTab === 'module' ? '#8B5CF6' : selectedTab === 'batch' ? '#EC4899' : '#4F6EF7',
+              boxShadow: `0 0 8px ${selectedTab === 'module' ? '#8B5CF6' : selectedTab === 'batch' ? '#EC4899' : '#4F6EF7'}`,
+            }} />
+            <span style={{ fontSize: '14px', fontWeight: 800, letterSpacing: '-0.2px', color: '#fff', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+              {selectedTab === 'module' ? '模块编辑' : selectedTab === 'batch' ? '批量操作' : '画布设置'}
+            </span>
           </div>
-          <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: 3 }}>
-            {selectedTab === 'module' ? '精细调整选中模块' : selectedTab === 'batch' ? '批量配色 · AI填充 · 上传 · 动画' : '全局背景 · AI文生图'}
+          <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.38)', marginTop: 4 }}>
+            {selectedTab === 'module' ? '点击画布中的模块开始编辑' : selectedTab === 'batch' ? '批量配色 · AI填充 · 动画' : '全局背景 · AI文生图'}
           </div>
         </div>
 
@@ -2304,13 +2332,12 @@ export default function App() {
             快速保存
           </button>
 
-          {/* 历史 */}
+          {/* 视频导出 */}
           <button
-            onClick={() => setHistoryOpen((s) => !s)}
-            style={{ padding: '11px 13px', borderRadius: 12, background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
-          >
-            {historyOpen ? '关闭历史' : '历史'}
-          </button>
+            onClick={() => setShowVideoExport(true)}
+            title="导出动态视频"
+            style={{ height: 42, padding: '0 14px', borderRadius: 12, background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer', fontWeight: 600, fontSize: 12 }}
+          >🎬 视频</button>
           {debugSample && <div style={{ color: '#fff', fontSize: 11 }}>{debugSample}</div>}
         </div>
       </div>
