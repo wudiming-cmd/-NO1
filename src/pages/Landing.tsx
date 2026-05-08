@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router";
-import { Film, Wand2, Sparkles, ArrowRight, Zap, Layers, Image, Type, Video, Scissors } from "lucide-react";
+import { Film, Wand2, Sparkles, ArrowRight, Zap, Layers, Image, Type, Video, Scissors, Bell } from "lucide-react";
 import { useEffect, useRef, useState, useCallback } from "react";
+import WhatsNewModal from "./WhatsNewModal";
 
 const WORKSPACES = [
   {
@@ -245,12 +246,19 @@ function Card3D({ ws, onEnter }: { ws: typeof WORKSPACES[0]; onEnter: () => void
 
 export default function Landing() {
   const [mounted, setMounted] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
   const mouseRef = useRef({ x: 0.5, y: 0.5 });
 
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 50);
+    // Auto-show modal on first visit per session
+    const seen = sessionStorage.getItem("wn_seen");
+    if (!seen) {
+      setTimeout(() => setShowModal(true), 600);
+      sessionStorage.setItem("wn_seen", "1");
+    }
     return () => clearTimeout(t);
   }, []);
 
@@ -356,26 +364,55 @@ export default function Landing() {
       {/* Content */}
       <div style={{ position: "relative", zIndex: 2, width: "100%", maxWidth: 800, display: "flex", flexDirection: "column", alignItems: "center" }}>
 
-        {/* Badge */}
-        <div style={{
-          ...anim(0),
-          display: "inline-flex", alignItems: "center", gap: 8,
-          padding: "6px 14px 6px 8px", borderRadius: 99, marginBottom: 40,
-          background: "rgba(255,255,255,0.06)",
-          border: "1px solid rgba(255,255,255,0.1)",
-          backdropFilter: "blur(12px)",
-        }}>
+        {/* Badge row */}
+        <div style={{ ...anim(0), display: "flex", alignItems: "center", gap: 10, marginBottom: 40 }}>
+          {/* Logo pill */}
           <div style={{
-            width: 28, height: 28, borderRadius: 10,
-            background: "linear-gradient(135deg,#667EEA,#764BA2)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: "0 4px 12px rgba(102,126,234,0.5)",
+            display: "inline-flex", alignItems: "center", gap: 8,
+            padding: "6px 14px 6px 8px", borderRadius: 99,
+            background: "rgba(255,255,255,0.06)",
+            border: "1px solid rgba(255,255,255,0.1)",
+            backdropFilter: "blur(12px)",
           }}>
-            <Sparkles size={13} color="white" />
+            <div style={{
+              width: 28, height: 28, borderRadius: 10,
+              background: "linear-gradient(135deg,#667EEA,#764BA2)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              boxShadow: "0 4px 12px rgba(102,126,234,0.5)",
+            }}>
+              <Sparkles size={13} color="white" />
+            </div>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.85)" }}>AI Studio</span>
+            <span style={{ width: 1, height: 14, background: "rgba(255,255,255,0.15)" }} />
+            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>投放素材平台</span>
           </div>
-          <span style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.85)" }}>AI Studio</span>
-          <span style={{ width: 1, height: 14, background: "rgba(255,255,255,0.15)" }} />
-          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>投放素材平台</span>
+
+          {/* What's New button */}
+          <button
+            onClick={() => setShowModal(true)}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "6px 12px 6px 8px", borderRadius: 99, border: "none",
+              background: "linear-gradient(135deg, rgba(79,110,247,0.2), rgba(168,85,247,0.2))",
+              border: "1px solid rgba(168,85,247,0.3)",
+              color: "#C4B5FD", fontSize: 12, fontWeight: 700,
+              cursor: "pointer", backdropFilter: "blur(12px)",
+              transition: "all 0.2s ease",
+            }}
+            onMouseEnter={e => {
+              const el = e.currentTarget as HTMLElement;
+              el.style.background = "linear-gradient(135deg, rgba(79,110,247,0.35), rgba(168,85,247,0.35))";
+              el.style.transform = "scale(1.04)";
+            }}
+            onMouseLeave={e => {
+              const el = e.currentTarget as HTMLElement;
+              el.style.background = "linear-gradient(135deg, rgba(79,110,247,0.2), rgba(168,85,247,0.2))";
+              el.style.transform = "scale(1)";
+            }}
+          >
+            <Bell size={12} />
+            ✦ v2.0 新功能
+          </button>
         </div>
 
         {/* Headline */}
@@ -422,6 +459,9 @@ export default function Landing() {
           100% { transform: translateX(200%) skewX(-15deg); }
         }
       `}</style>
+
+      {/* What's New Modal */}
+      {showModal && <WhatsNewModal onClose={() => setShowModal(false)} />}
     </div>
   );
 }
