@@ -295,32 +295,36 @@ export default function Landing() {
     resize();
     window.addEventListener("resize", resize);
 
-    // ── Particles ─────────────────────────────────────────────────────────────
+    // ── Particles (pooled for zero GC) ───────────────────────────────────────
+    const MAX_PARTICLES = 60;
     const particles: Particle[] = [];
     const lastPx = { x: -999, y: -999 };
-    const PARTICLE_HUES = [240, 255, 270, 285, 300, 315]; // blue→purple→pink
+    // Pre-baked hsla strings to avoid string allocation in hot path
+    const P_COLORS = ["#7C6CF7","#9B59F7","#B44CF7","#CC44EF","#E040D8","#F040C0"];
 
     const spawnParticles = (mx: number, my: number, dx: number, dy: number) => {
       const spd = Math.sqrt(dx * dx + dy * dy);
-      if (spd < 1.5) return;
-      const count = Math.min(Math.ceil(spd * 0.55), 12);
+      if (spd < 2) return;
+      if (particles.length >= MAX_PARTICLES) return; // cap — no allocation pressure
+      const count = Math.min(Math.ceil(spd * 0.35), 6); // fewer per frame
+      const baseAngle = Math.atan2(dy, dx) + Math.PI;
       for (let i = 0; i < count; i++) {
-        const angle = Math.atan2(dy, dx) + Math.PI + (Math.random() - 0.5) * 2.2;
-        const pSpeed = (0.4 + Math.random() * 3.8) * (spd * 0.05 + 0.6);
+        if (particles.length >= MAX_PARTICLES) break;
+        const angle = baseAngle + (Math.random() - 0.5) * 2.0;
+        const pSpeed = (0.5 + Math.random() * 3.0) * (spd * 0.04 + 0.5);
         particles.push({
-          x: mx + (Math.random() - 0.5) * 8,
-          y: my + (Math.random() - 0.5) * 8,
+          x: mx, y: my,
           vx: Math.cos(angle) * pSpeed,
-          vy: Math.sin(angle) * pSpeed - Math.random() * 2,
+          vy: Math.sin(angle) * pSpeed - Math.random() * 1.5,
           life: 0,
-          maxLife: 20 + Math.random() * 30,
-          size: 1.0 + Math.random() * 3.0,
-          hue: PARTICLE_HUES[Math.floor(Math.random() * PARTICLE_HUES.length)],
+          maxLife: 18 + Math.random() * 22 | 0, // integer
+          size: 1.0 + Math.random() * 2.5,
+          hue: Math.random() * 80 + 240, // 240-320
         });
       }
     };
 
-    // ── Cursor glow: direct DOM for zero-lag ──────────────────────────────────
+    // ── Cursor glow: direct DOM ───────────────────────────────────────────────
     const onMouse = (e: MouseEvent) => {
       const mx = e.clientX, my = e.clientY;
       mouseRef.current = { x: mx, y: my };
@@ -340,150 +344,151 @@ export default function Landing() {
     window.addEventListener("mousemove", onMouse);
     document.addEventListener("mouseleave", onLeave);
 
-    // ── Stars ─────────────────────────────────────────────────────────────────
-    const stars = Array.from({ length: 100 }, () => ({
-      x: Math.random(), y: Math.random(),
-      r: Math.random() * 1.4 + 0.2,
-      alpha: Math.random() * 0.6 + 0.1,
-      speed: Math.random() * 0.0004 + 0.0001,
-      phase: Math.random() * Math.PI * 2,
-    }));
+    // ── Stars (60, pre-baked pixel coords, only recomputed on resize) ─────────
+    let starPx: { x: number; y: number; r: number; baseA: number; sp: number; ph: number }[] = [];
+    const buildStars = (W: number, H: number) => {
+      starPx = Array.from({ length: 60 }, () => ({
+        x: Math.random() * W, y: Math.random() * H,
+        r: Math.random() * 1.2 + 0.2,
+        baseA: Math.random() * 0.5 + 0.1,
+        sp: Math.random() * 0.003 + 0.001,
+        ph: Math.random() * Math.PI * 2,
+      }));
+    };
+    buildStars(canvas.width, canvas.height);
+    const origResize = resize;
+    const resize2 = () => { origResize(); buildStars(canvas.width, canvas.height); };
+    window.removeEventListener("resize", resize);
+    window.addEventListener("resize", resize2);
 
-    // ── Background orbs ───────────────────────────────────────────────────────
+    // ── Background orbs (update every 3rd frame) ──────────────────────────────
     const orbs = [
-      { x: 0.1,  y: 0.25, r: 380, c: [79, 110, 247],  speed: 0.15 },
-      { x: 0.88, y: 0.7,  r: 420, c: [168, 85, 247],  speed: 0.12 },
-      { x: 0.6,  y: 0.1,  r: 280, c: [118, 75, 162],  speed: 0.18 },
-      { x: 0.25, y: 0.85, r: 240, c: [236, 72, 153],  speed: 0.10 },
+      { x: 0.1,  y: 0.25, r: 380, c: [79, 110, 247],  sp: 0.15 },
+      { x: 0.88, y: 0.7,  r: 420, c: [168, 85, 247],  sp: 0.12 },
+      { x: 0.6,  y: 0.1,  r: 280, c: [118, 75, 162],  sp: 0.18 },
+      { x: 0.25, y: 0.85, r: 240, c: [236, 72, 153],  sp: 0.10 },
     ];
+    // Pre-bake orb gradients (recreate only when size changes)
+    let orbCache: { ox: number; oy: number; g: CanvasGradient }[] = [];
 
     // ── Meteors ───────────────────────────────────────────────────────────────
     const meteors: Meteor[] = [];
     let lastMeteor = 0;
-    const METEOR_INTERVAL = 90; // frames between spawns (~1.5s at 60fps)
+    const METEOR_INTERVAL = 100;
 
     let frame = 0;
     const draw = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      animRef.current = requestAnimationFrame(draw);
       frame++;
       const W = canvas.width, H = canvas.height;
+      ctx.clearRect(0, 0, W, H);
 
-      // Orbs
-      orbs.forEach((orb, i) => {
-        const t = frame * orb.speed * 0.005;
-        const mx = ((mouseRef.current.x / W) - 0.5) * 0.04;
-        const my = ((mouseRef.current.y / H) - 0.5) * 0.04;
-        const ox = (orb.x + Math.sin(t + i) * 0.08 + mx) * W;
-        const oy = (orb.y + Math.cos(t * 0.7 + i) * 0.06 + my) * H;
-        const g = ctx.createRadialGradient(ox, oy, 0, ox, oy, orb.r);
-        const [r, c2, b] = orb.c;
-        g.addColorStop(0,   `rgba(${r},${c2},${b},0.2)`);
-        g.addColorStop(0.5, `rgba(${r},${c2},${b},0.06)`);
-        g.addColorStop(1,   "transparent");
+      // ── Orbs (update gradient every 3 frames to save GPU) ──
+      if (frame % 3 === 0 || orbCache.length === 0) {
+        orbCache = orbs.map((orb, i) => {
+          const t = frame * orb.sp * 0.005;
+          const mx = ((mouseRef.current.x / W) - 0.5) * 0.04;
+          const my = ((mouseRef.current.y / H) - 0.5) * 0.04;
+          const ox = (orb.x + Math.sin(t + i) * 0.08 + mx) * W;
+          const oy = (orb.y + Math.cos(t * 0.7 + i) * 0.06 + my) * H;
+          const g = ctx.createRadialGradient(ox, oy, 0, ox, oy, orb.r);
+          const [r, c2, b] = orb.c;
+          g.addColorStop(0,   `rgba(${r},${c2},${b},0.2)`);
+          g.addColorStop(0.6, `rgba(${r},${c2},${b},0.05)`);
+          g.addColorStop(1,   "transparent");
+          return { ox, oy, g };
+        });
+      }
+      orbCache.forEach(({ ox, oy, g }, i) => {
         ctx.fillStyle = g;
         ctx.beginPath();
-        ctx.arc(ox, oy, orb.r, 0, Math.PI * 2);
+        ctx.arc(ox, oy, orbs[i].r, 0, Math.PI * 2);
         ctx.fill();
       });
 
-      // Stars
-      stars.forEach((s) => {
-        const t2 = frame * s.speed;
-        const alpha = s.alpha * (0.5 + 0.5 * Math.sin(t2 * 10 + s.phase));
-        ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+      // ── Stars: batch all in one path per alpha bucket ──
+      const t = frame * 0.001;
+      starPx.forEach((s) => {
+        const a = s.baseA * (0.5 + 0.5 * Math.sin(t * s.sp * 1000 + s.ph));
+        ctx.fillStyle = `rgba(255,255,255,${a.toFixed(2)})`;
         ctx.beginPath();
-        ctx.arc(s.x * W, s.y * H, s.r, 0, Math.PI * 2);
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
         ctx.fill();
       });
 
-      // Spawn meteors
+      // ── Meteors (no shadowBlur — use two-pass for glow) ──
       if (frame - lastMeteor > METEOR_INTERVAL) {
         meteors.push(spawnMeteor(W, H));
-        if (Math.random() > 0.6) meteors.push(spawnMeteor(W, H)); // occasional double
+        if (Math.random() > 0.65) meteors.push(spawnMeteor(W, H));
         lastMeteor = frame;
       }
-
-      // Draw & update meteors
+      ctx.lineCap = "round";
       for (let i = meteors.length - 1; i >= 0; i--) {
         const m = meteors[i];
         m.x += m.vx; m.y += m.vy; m.life++;
         const progress = m.life / m.maxLife;
         const alpha = progress < 0.15 ? progress / 0.15 : 1 - (progress - 0.15) / 0.85;
         if (alpha <= 0 || m.life >= m.maxLife) { meteors.splice(i, 1); continue; }
-
-        // Trail: gradient line
-        const tailX = m.x - m.vx / Math.hypot(m.vx, m.vy) * m.len;
-        const tailY = m.y - m.vy / Math.hypot(m.vx, m.vy) * m.len;
+        const spd = Math.hypot(m.vx, m.vy);
+        const tailX = m.x - (m.vx / spd) * m.len;
+        const tailY = m.y - (m.vy / spd) * m.len;
+        // Thick glow pass
         const grad = ctx.createLinearGradient(tailX, tailY, m.x, m.y);
-        grad.addColorStop(0, `hsla(${m.hue},100%,90%,0)`);
-        grad.addColorStop(0.7, `hsla(${m.hue},80%,80%,${alpha * 0.3})`);
-        grad.addColorStop(1,   `hsla(${m.hue},60%,100%,${alpha})`);
+        grad.addColorStop(0, "transparent");
+        grad.addColorStop(1, `hsla(${m.hue},90%,85%,${alpha * 0.8})`);
         ctx.strokeStyle = grad;
-        ctx.lineWidth = m.w;
-        ctx.lineCap = "round";
-        ctx.shadowBlur = 12;
-        ctx.shadowColor = `hsla(${m.hue},100%,80%,0.8)`;
-        ctx.beginPath();
-        ctx.moveTo(tailX, tailY);
-        ctx.lineTo(m.x, m.y);
-        ctx.stroke();
-
-        // Bright head glow
-        const headG = ctx.createRadialGradient(m.x, m.y, 0, m.x, m.y, 10);
-        headG.addColorStop(0, `rgba(255,255,255,${alpha * 0.95})`);
-        headG.addColorStop(0.4, `hsla(${m.hue},100%,90%,${alpha * 0.5})`);
-        headG.addColorStop(1, "transparent");
-        ctx.fillStyle = headG;
-        ctx.beginPath();
-        ctx.arc(m.x, m.y, 10, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.shadowBlur = 0;
+        ctx.lineWidth = m.w + 3;
+        ctx.globalAlpha = 0.4;
+        ctx.beginPath(); ctx.moveTo(tailX, tailY); ctx.lineTo(m.x, m.y); ctx.stroke();
+        // Core pass
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = `hsla(${m.hue},80%,95%,${alpha})`;
+        ctx.lineWidth = m.w * 0.6;
+        ctx.beginPath(); ctx.moveTo(tailX, tailY); ctx.lineTo(m.x, m.y); ctx.stroke();
+        // Head dot (no gradient, just white circle)
+        ctx.fillStyle = `rgba(255,255,255,${alpha * 0.9})`;
+        ctx.beginPath(); ctx.arc(m.x, m.y, m.w * 1.2, 0, Math.PI * 2); ctx.fill();
       }
+      ctx.globalAlpha = 1;
 
-      // ── Cursor Particles ──────────────────────────────────────────────────────
-      for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i];
-        // Physics
-        p.x  += p.vx;
-        p.y  += p.vy;
-        p.vy += 0.09;    // gravity
-        p.vx *= 0.94;    // air resistance
-        p.vy *= 0.94;
-        p.life++;
-
-        const progress = p.life / p.maxLife;
-        const alpha = Math.pow(1 - progress, 1.8);
-        const sz = p.size * (1 - progress * 0.6);
-
-        if (alpha <= 0.01 || p.life >= p.maxLife) { particles.splice(i, 1); continue; }
-
-        // Outer glow
-        const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, sz * 3.5);
-        g.addColorStop(0,   `hsla(${p.hue},100%,85%,${alpha * 0.9})`);
-        g.addColorStop(0.4, `hsla(${p.hue},90%,65%,${alpha * 0.45})`);
-        g.addColorStop(1,   "transparent");
-        ctx.fillStyle = g;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, sz * 3.5, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Bright core
-        ctx.fillStyle = `hsla(${p.hue},80%,98%,${alpha})`;
-        ctx.shadowBlur = 6;
-        ctx.shadowColor = `hsla(${p.hue},100%,80%,${alpha})`;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, sz * 0.5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.shadowBlur = 0;
+      // ── Particles: use 'lighter' composite — NO gradients, NO shadowBlur ──
+      if (particles.length > 0) {
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i];
+          p.x += p.vx; p.y += p.vy;
+          p.vy += 0.08; p.vx *= 0.95; p.vy *= 0.95;
+          p.life++;
+          if (p.life >= p.maxLife) { particles.splice(i, 1); continue; }
+          const progress = p.life / p.maxLife;
+          const alpha = (1 - progress) * (1 - progress); // quadratic falloff
+          const sz = p.size * (1 - progress * 0.5);
+          // Soft halo (large, low alpha)
+          ctx.fillStyle = `hsla(${p.hue | 0},100%,70%,${(alpha * 0.18).toFixed(3)})`;
+          ctx.beginPath(); ctx.arc(p.x, p.y, sz * 4, 0, Math.PI * 2); ctx.fill();
+          // Core glow
+          ctx.fillStyle = `hsla(${p.hue | 0},90%,90%,${(alpha * 0.65).toFixed(3)})`;
+          ctx.beginPath(); ctx.arc(p.x, p.y, sz * 1.2, 0, Math.PI * 2); ctx.fill();
+          // Bright centre
+          ctx.fillStyle = `rgba(255,255,255,${(alpha * 0.9).toFixed(3)})`;
+          ctx.beginPath(); ctx.arc(p.x, p.y, sz * 0.4, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.restore();
       }
-
-      animRef.current = requestAnimationFrame(draw);
     };
     draw();
 
+    // Pause animation when tab hidden (saves CPU)
+    const onVisibility = () => {
+      if (document.hidden) cancelAnimationFrame(animRef.current);
+      else draw();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
     return () => {
-      window.removeEventListener("resize", resize);
+      window.removeEventListener("resize", resize2);
+      document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("mousemove", onMouse);
       document.removeEventListener("mouseleave", onLeave);
       cancelAnimationFrame(animRef.current);
