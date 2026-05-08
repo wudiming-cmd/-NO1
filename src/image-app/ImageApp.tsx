@@ -61,9 +61,7 @@ export default function App() {
   const [backgroundLayers, setBackgroundLayers] = useState<BackgroundLayer[]>([]);
   const [backgroundBlur, setBackgroundBlur] = useState<number>(0);
   const [selectedTab, setSelectedTab] = useState<'canvas' | 'batch' | 'module'>('module');
-  const [showWelcome, setShowWelcome] = useState(() => {
-    try { return !localStorage.getItem('cc_welcomed'); } catch { return true; }
-  });
+  const [showWelcome] = useState(false);
   const [showVideoExport, setShowVideoExport] = useState(false);
   const [leftTab, setLeftTab] = useState<'images' | 'templates'>('images');
 
