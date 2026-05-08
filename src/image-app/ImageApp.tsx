@@ -13,24 +13,9 @@ import VideoExportModal from './components/VideoExportModal';
 import BatchPanel from './components/BatchPanel';
 import ModuleQuickNav from './components/ModuleQuickNav';
 import {
-  Plane,
-  Music,
-  Flashlight,
-  AlarmClock,
-  Moon,
-  Sun,
-  Volume2,
-  Calculator,
-  Camera,
-  RotateCw,
-  Bell,
-  Battery,
-  Settings,
-  Wifi,
-  Bluetooth,
-  Radio,
-  Sparkles,
-  Download,
+  Plane, Music, Flashlight, AlarmClock, Moon, Sun, Volume2,
+  Calculator, Camera, RotateCw, Bell, Battery, Settings,
+  Wifi, Bluetooth, Radio, Sparkles, Download, Wand2,
 } from 'lucide-react';
 // TrendingPanel removed
 import ImageSearchPanel from './components/ImageSearchPanel';
@@ -1451,20 +1436,122 @@ export default function App() {
   };
 
   return (
-    <div style={{ display: 'flex', width: '100vw', height: '100vh', background: 'linear-gradient(160deg, #07080F 0%, #0B0C18 40%, #0E0B1A 100%)', color: '#fff', fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-      {/* 左侧：模块库 */}
-      <div style={{ width: '220px', background: 'rgba(8,9,18,0.97)', borderRight: '1px solid rgba(139,92,246,0.15)', display: 'flex', flexDirection: 'column', boxShadow: '2px 0 20px rgba(0,0,0,0.3)' }}>
-        {/* Header */}
-        <div style={{ padding: '10px 12px 8px', background: 'linear-gradient(135deg, rgba(79,110,247,0.25) 0%, rgba(139,92,246,0.2) 100%)', borderBottom: '1px solid rgba(139,92,246,0.2)', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Sparkles size={16} color="#fff" />
-              <span style={{ fontSize: 15, fontWeight: 800 }}>素材库</span>
-            </div>
-            <button onClick={() => navigate('/')}
-              style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.7)', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '3px 8px', cursor: 'pointer' }}>
-              ← 首页
-            </button>
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100vw', height: '100vh', background: 'linear-gradient(160deg, #07080F 0%, #0B0C18 40%, #0E0B1A 100%)', color: '#fff', fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+
+      {/* ═══ 全局顶部导航栏 ═══ */}
+      <header style={{
+        height: 56, flexShrink: 0,
+        display: 'flex', alignItems: 'center', padding: '0 20px', gap: 12,
+        background: 'rgba(5,6,14,0.92)', backdropFilter: 'blur(20px)',
+        borderBottom: '1px solid rgba(139,92,246,0.12)',
+        boxShadow: '0 1px 0 rgba(0,0,0,0.3)',
+        position: 'relative', zIndex: 10,
+      }}>
+        {/* 左：Logo + 标题 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: 10, flexShrink: 0,
+            background: 'linear-gradient(135deg, #A855F7, #EC4899)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(168,85,247,0.4)',
+          }}>
+            <Wand2 size={15} color="#fff" />
+          </div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: '#fff', fontFamily: "'Plus Jakarta Sans', sans-serif", lineHeight: 1.2 }}>AI 图片编辑</div>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', lineHeight: 1 }}>iOS 控制中心定制器</div>
+          </div>
+        </div>
+
+        {/* 分割线 */}
+        <div style={{ width: 1, height: 24, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />
+
+        {/* 工具按钮组 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {/* 撤销 */}
+          <button onClick={handleUndo} disabled={historyIndex <= 0} title="撤销 Ctrl+Z"
+            style={{
+              width: 32, height: 32, borderRadius: 8,
+              border: '1px solid rgba(255,255,255,0.07)',
+              background: 'rgba(255,255,255,0.04)',
+              color: historyIndex <= 0 ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.7)',
+              cursor: historyIndex <= 0 ? 'not-allowed' : 'pointer',
+              fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>↩</button>
+
+          {/* 网格 */}
+          <button onClick={() => setShowGrid(s => !s)}
+            style={{
+              height: 32, padding: '0 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              border: `1px solid ${showGrid ? 'rgba(139,92,246,0.5)' : 'rgba(255,255,255,0.07)'}`,
+              background: showGrid ? 'rgba(139,92,246,0.15)' : 'rgba(255,255,255,0.04)',
+              color: showGrid ? '#C4B5FD' : 'rgba(255,255,255,0.55)',
+            }}>网格</button>
+
+          {/* + 新增 */}
+          <button onClick={handleAddModule}
+            style={{
+              height: 32, padding: '0 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+              border: '1px solid rgba(139,92,246,0.4)',
+              background: 'rgba(139,92,246,0.12)', color: '#C4B5FD',
+            }}>+ 新增</button>
+
+          {/* 全选 */}
+          <button onClick={() => { setSelectedModuleIds(modules.map(m => m.id)); setSelectedModuleId(null); setSelectedTab('batch'); }}
+            style={{
+              height: 32, padding: '0 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              border: `1px solid ${selectedModuleIds.length > 0 ? 'rgba(168,85,247,0.5)' : 'rgba(168,85,247,0.2)'}`,
+              background: selectedModuleIds.length > 0 ? 'rgba(168,85,247,0.18)' : 'rgba(168,85,247,0.06)',
+              color: '#D8B4FE',
+            }}>全选</button>
+        </div>
+
+        {/* 中：画布信息（居中） */}
+        <div style={{
+          position: 'absolute', left: '50%', transform: 'translateX(-50%)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', pointerEvents: 'none',
+        }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.04em' }}>
+            {modules.length} 个模块
+          </span>
+          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', marginTop: 1 }}>{Math.round(zoom * 100)}% 缩放</span>
+        </div>
+
+        {/* 右：历史 + 首页 */}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button onClick={() => setHistoryOpen(s => !s)}
+            style={{
+              height: 32, padding: '0 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              border: `1px solid ${historyOpen ? 'rgba(139,92,246,0.4)' : 'rgba(255,255,255,0.07)'}`,
+              background: historyOpen ? 'rgba(139,92,246,0.1)' : 'rgba(255,255,255,0.04)',
+              color: historyOpen ? '#C4B5FD' : 'rgba(255,255,255,0.45)',
+            }}>历史</button>
+
+          <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.08)' }} />
+
+          <button onClick={() => navigate('/')}
+            style={{
+              height: 32, padding: '0 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              border: '1px solid rgba(255,255,255,0.08)',
+              background: 'rgba(255,255,255,0.04)',
+              color: 'rgba(255,255,255,0.5)',
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}>
+            ← 首页
+          </button>
+        </div>
+      </header>
+
+      {/* ═══ 主内容区（三栏）═══ */}
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
+
+      {/* 左侧：素材库 */}
+      <div style={{ width: '220px', background: 'rgba(8,9,18,0.97)', borderRight: '1px solid rgba(139,92,246,0.12)', display: 'flex', flexDirection: 'column' }}>
+        {/* 素材库标题 */}
+        <div style={{ padding: '12px 14px 10px', borderBottom: '1px solid rgba(139,92,246,0.1)', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+            <div style={{ width: 5, height: 16, borderRadius: 3, background: 'linear-gradient(180deg, #8B5CF6, #EC4899)', flexShrink: 0 }} />
+            <span style={{ fontSize: 13, fontWeight: 800, color: '#fff', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>素材库</span>
           </div>
         </div>
 
@@ -1628,83 +1715,8 @@ export default function App() {
         )}
       </div>
 
-      {/* 中间：手机预览画板 */}
+      {/* 中间：画板 */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'radial-gradient(ellipse at 50% 40%, #0D0E22 0%, #07080F 100%)' }}>
-
-        {/* ── 顶部工具栏（精简）── */}
-        <div style={{
-          height: 48, borderBottom: '1px solid rgba(139,92,246,0.1)',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '0 16px', flexShrink: 0,
-          background: 'rgba(5,6,14,0.9)', backdropFilter: 'blur(16px)',
-          position: 'relative',
-        }}>
-          {/* 左：编辑工具 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            {/* 撤销 */}
-            <button onClick={handleUndo} disabled={historyIndex <= 0} title="撤销 Ctrl+Z"
-              style={{
-                width: 30, height: 30, borderRadius: 8,
-                border: '1px solid rgba(255,255,255,0.07)',
-                background: 'rgba(255,255,255,0.04)',
-                color: historyIndex <= 0 ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.65)',
-                cursor: historyIndex <= 0 ? 'not-allowed' : 'pointer',
-                fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-              }}>↩</button>
-
-            <div style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.07)', flexShrink: 0 }} />
-
-            {/* 网格 toggle */}
-            <button onClick={() => setShowGrid(s => !s)}
-              style={{
-                height: 30, padding: '0 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
-                border: `1px solid ${showGrid ? 'rgba(139,92,246,0.5)' : 'rgba(255,255,255,0.07)'}`,
-                background: showGrid ? 'rgba(139,92,246,0.14)' : 'rgba(255,255,255,0.03)',
-                color: showGrid ? '#C4B5FD' : 'rgba(255,255,255,0.5)',
-              }}>网格</button>
-
-            {/* + 新增模块 */}
-            <button onClick={handleAddModule}
-              style={{
-                height: 30, padding: '0 12px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer', flexShrink: 0,
-                border: '1px solid rgba(139,92,246,0.4)',
-                background: 'rgba(139,92,246,0.12)', color: '#C4B5FD',
-              }}>+ 新增</button>
-
-            {/* 全选批量 */}
-            <button
-              onClick={() => { setSelectedModuleIds(modules.map(m => m.id)); setSelectedModuleId(null); setSelectedTab('batch'); }}
-              style={{
-                height: 30, padding: '0 10px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
-                border: `1px solid ${selectedModuleIds.length > 0 ? 'rgba(168,85,247,0.5)' : 'rgba(168,85,247,0.2)'}`,
-                background: selectedModuleIds.length > 0 ? 'rgba(168,85,247,0.18)' : 'rgba(168,85,247,0.05)',
-                color: '#D8B4FE',
-              }}>全选</button>
-          </div>
-
-          {/* 中：标题（绝对居中） */}
-          <div style={{
-            position: 'absolute', left: '50%', top: '50%',
-            transform: 'translate(-50%,-50%)',
-            display: 'flex', flexDirection: 'column', alignItems: 'center', pointerEvents: 'none',
-          }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.6)', letterSpacing: '0.02em', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-              画布预览
-            </span>
-            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', marginTop: 1 }}>
-              {modules.length} 模块 · {Math.round(zoom * 100)}%
-            </span>
-          </div>
-
-          {/* 右：历史 */}
-          <button onClick={() => setHistoryOpen(s => !s)}
-            style={{
-              height: 30, padding: '0 12px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer',
-              border: `1px solid ${historyOpen ? 'rgba(139,92,246,0.4)' : 'rgba(255,255,255,0.07)'}`,
-              background: historyOpen ? 'rgba(139,92,246,0.1)' : 'rgba(255,255,255,0.03)',
-              color: historyOpen ? '#C4B5FD' : 'rgba(255,255,255,0.45)',
-            }}>历史</button>
-        </div>
 
         {/* 画布区域 */}
         <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden', position: 'relative' }}>
@@ -2341,6 +2353,7 @@ export default function App() {
           {debugSample && <div style={{ color: '#fff', fontSize: 11 }}>{debugSample}</div>}
         </div>
       </div>
+      </div> {/* end 三栏 */}
 
       {/* 导出对话框 */}
       {showExportDialog && (
