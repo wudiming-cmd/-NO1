@@ -1451,11 +1451,11 @@ export default function App() {
   };
 
   return (
-    <div style={{ display: 'flex', width: '100vw', height: '100vh', background: 'linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%)', color: '#fff', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}>
+    <div style={{ display: 'flex', width: '100vw', height: '100vh', background: 'linear-gradient(160deg, #07080F 0%, #0B0C18 40%, #0E0B1A 100%)', color: '#fff', fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif" }}>
       {/* 左侧：模块库 */}
-      <div style={{ width: '240px', background: 'linear-gradient(180deg, #1a1a1a 0%, #141414 100%)', borderRight: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', boxShadow: '2px 0 20px rgba(0,0,0,0.3)' }}>
+      <div style={{ width: '240px', background: 'rgba(8,9,18,0.97)', borderRight: '1px solid rgba(139,92,246,0.15)', display: 'flex', flexDirection: 'column', boxShadow: '2px 0 20px rgba(0,0,0,0.3)' }}>
         {/* Header */}
-        <div style={{ padding: '10px 12px 8px', background: 'linear-gradient(135deg, #2a5298 0%, #1e3a5f 100%)', borderBottom: '1px solid rgba(255,255,255,0.1)', flexShrink: 0 }}>
+        <div style={{ padding: '10px 12px 8px', background: 'linear-gradient(135deg, rgba(79,110,247,0.25) 0%, rgba(139,92,246,0.2) 100%)', borderBottom: '1px solid rgba(139,92,246,0.2)', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <Sparkles size={16} color="#fff" />
@@ -1469,7 +1469,7 @@ export default function App() {
         </div>
 
         {/* Tab bar */}
-        <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.2)', flexShrink: 0 }}>
+        <div style={{ display: 'flex', borderBottom: '1px solid rgba(139,92,246,0.12)', background: 'rgba(5,6,14,0.6)', flexShrink: 0 }}>
           {([['images', '🖼 图片'], ['templates', '📦 模板']] as const).map(([key, label]) => (
             <button
               key={key}
@@ -1478,12 +1478,12 @@ export default function App() {
                 flex: 1,
                 padding: '9px 0',
                 border: 'none',
-                background: leftTab === key ? 'rgba(102,126,234,0.12)' : 'transparent',
-                color: leftTab === key ? '#a5b4fc' : 'rgba(255,255,255,0.45)',
+                background: leftTab === key ? 'rgba(139,92,246,0.15)' : 'transparent',
+                color: leftTab === key ? '#C4B5FD' : 'rgba(255,255,255,0.4)',
                 fontSize: 12,
                 fontWeight: leftTab === key ? 700 : 500,
                 cursor: 'pointer',
-                borderBottom: leftTab === key ? '2px solid #667eea' : '2px solid transparent',
+                borderBottom: leftTab === key ? '2px solid #8B5CF6' : '2px solid transparent',
                 transition: 'all 0.15s ease',
               }}
             >
@@ -1629,27 +1629,27 @@ export default function App() {
       </div>
 
       {/* 中间：手机预览画板 */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'radial-gradient(circle at center, #1a1a1a 0%, #0f0f0f 100%)' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'radial-gradient(ellipse at center, #0D0E1F 0%, #07080F 100%)' }}>
         {/* 顶部工具栏 */}
-        <div style={{ height: 44, borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', flexShrink: 0, background: 'rgba(0,0,0,0.2)' }}>
+        <div style={{ height: 44, borderBottom: '1px solid rgba(139,92,246,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', flexShrink: 0, background: 'rgba(5,6,14,0.8)', backdropFilter: 'blur(12px)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <button
               onClick={handleUndo}
               title="撤销 (Ctrl+Z)"
               disabled={historyIndex <= 0}
-              style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', color: historyIndex <= 0 ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.7)', cursor: historyIndex <= 0 ? 'not-allowed' : 'pointer', fontSize: 12, fontWeight: 600 }}
+              style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', color: historyIndex <= 0 ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.75)', cursor: historyIndex <= 0 ? 'not-allowed' : 'pointer', fontSize: 12, fontWeight: 600 }}
             >
               ↩ 撤销
             </button>
             <button
               onClick={() => setShowGrid(s => !s)}
-              style={{ padding: '5px 10px', borderRadius: 6, border: `1px solid ${showGrid ? 'rgba(102,126,234,0.5)' : 'rgba(255,255,255,0.08)'}`, background: showGrid ? 'rgba(102,126,234,0.12)' : 'rgba(255,255,255,0.04)', color: showGrid ? '#a5b4fc' : 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
+              style={{ padding: '5px 10px', borderRadius: 6, border: `1px solid ${showGrid ? 'rgba(139,92,246,0.5)' : 'rgba(255,255,255,0.08)'}`, background: showGrid ? 'rgba(139,92,246,0.12)' : 'rgba(255,255,255,0.04)', color: showGrid ? '#C4B5FD' : 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
             >
               {showGrid ? '隐藏网格' : '显示网格'}
             </button>
             <button
               onClick={handleAddModule}
-              style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid rgba(102,126,234,0.3)', background: 'rgba(102,126,234,0.1)', color: '#a5b4fc', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
+              style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid rgba(139,92,246,0.35)', background: 'rgba(139,92,246,0.12)', color: '#C4B5FD', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
             >
               + 新增模块
             </button>
@@ -1660,7 +1660,7 @@ export default function App() {
                 setSelectedTab('batch');
               }}
               title="全部选中后可批量修改颜色、动画等"
-              style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid rgba(168,85,247,0.3)', background: selectedModuleIds.length === modules.length && modules.length > 0 ? 'rgba(168,85,247,0.2)' : 'rgba(168,85,247,0.08)', color: '#c4b5fd', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
+              style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid rgba(168,85,247,0.35)', background: selectedModuleIds.length === modules.length && modules.length > 0 ? 'rgba(168,85,247,0.22)' : 'rgba(168,85,247,0.08)', color: '#E9D5FF', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
             >
               ☑ 全部选中
             </button>
@@ -1674,7 +1674,7 @@ export default function App() {
             </button>
             <button
               onClick={() => setShowExportDialog(true)}
-              style={{ padding: '5px 12px', borderRadius: 6, background: 'linear-gradient(135deg,#667eea,#764ba2)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 5 }}
+              style={{ padding: '5px 12px', borderRadius: 6, background: 'linear-gradient(135deg,#4F6EF7,#8B5CF6)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 5 }}
             >
               <Download size={12} />
               高清导出
@@ -1711,10 +1711,10 @@ export default function App() {
             position: 'relative',
             zoom,
             borderRadius: '120px',
-            border: isCanvasDragActive ? '12px solid rgba(100,200,255,0.6)' : '12px solid #1a1a1a',
+            border: isCanvasDragActive ? '12px solid rgba(139,92,246,0.6)' : '12px solid rgba(20,21,40,1)',
             overflow: 'hidden',
             background: '#0a0a0a',
-            boxShadow: isCanvasDragActive ? '0 60px 120px rgba(100,200,255,0.06), 0 0 0 2px rgba(100,200,255,0.02)' : '0 40px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05)',
+            boxShadow: isCanvasDragActive ? '0 0 0 3px rgba(139,92,246,0.5), 0 40px 80px rgba(139,92,246,0.2)' : '0 40px 100px rgba(0,0,0,0.8), 0 0 0 1px rgba(139,92,246,0.12), 0 0 60px rgba(79,110,247,0.08)',
           }}
         >
           <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
@@ -2161,22 +2161,22 @@ export default function App() {
       </div>
 
       {/* 右侧：编辑面板 */}
-      <div style={{ width: '400px', background: '#141414', color: '#fff', display: 'flex', flexDirection: 'column', boxShadow: '-1px 0 0 rgba(255,255,255,0.06)' }}>
-        <div style={{ padding: '16px 20px 14px', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'linear-gradient(135deg, rgba(102,126,234,0.15) 0%, rgba(118,75,162,0.1) 100%)' }}>
-          <div style={{ fontSize: '15px', fontWeight: 800, letterSpacing: '-0.3px', color: '#fff' }}>
-            {selectedTab === 'module' ? '🔲 模块编辑' : selectedTab === 'batch' ? '⚡ 批量操作' : '🎨 画布设置'}
+      <div style={{ width: '400px', background: 'rgba(8,9,18,0.97)', color: '#fff', display: 'flex', flexDirection: 'column', boxShadow: '-1px 0 0 rgba(139,92,246,0.15)' }}>
+        <div style={{ padding: '16px 20px 14px', borderBottom: '1px solid rgba(139,92,246,0.15)', background: 'linear-gradient(135deg, rgba(79,110,247,0.2) 0%, rgba(139,92,246,0.15) 100%)' }}>
+          <div style={{ fontSize: '14px', fontWeight: 800, letterSpacing: '-0.2px', color: '#fff', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+            {selectedTab === 'module' ? '模块编辑' : selectedTab === 'batch' ? '⚡ 批量操作' : '画布设置'}
           </div>
-          <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: 2 }}>
+          <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: 3 }}>
             {selectedTab === 'module' ? '精细调整选中模块' : selectedTab === 'batch' ? '批量配色 · AI填充 · 上传 · 动画' : '全局背景 · AI文生图'}
           </div>
         </div>
 
         {/* 选项卡 */}
-        <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.15)' }}>
+        <div style={{ display: 'flex', borderBottom: '1px solid rgba(139,92,246,0.12)', background: 'rgba(5,6,14,0.6)' }}>
           {([
-            ['module',  '🔲 模块'],
-            ['batch',   '⚡ 批量'],
-            ['canvas',  '🎨 画布'],
+            ['module',  '模块'],
+            ['batch',   '批量'],
+            ['canvas',  '画布'],
           ] as const).map(([key, label]) => (
             <button
               key={key}
@@ -2184,13 +2184,13 @@ export default function App() {
               style={{
                 flex: 1,
                 padding: '11px 0',
-                background: selectedTab === key ? 'rgba(102,126,234,0.1)' : 'transparent',
-                color: selectedTab === key ? '#a5b4fc' : 'rgba(255,255,255,0.4)',
+                background: selectedTab === key ? 'rgba(139,92,246,0.15)' : 'transparent',
+                color: selectedTab === key ? '#C4B5FD' : 'rgba(255,255,255,0.4)',
                 border: 'none',
                 cursor: 'pointer',
                 fontWeight: selectedTab === key ? 700 : 500,
                 fontSize: '12px',
-                borderBottom: selectedTab === key ? '2px solid #667eea' : '2px solid transparent',
+                borderBottom: selectedTab === key ? '2px solid #8B5CF6' : '2px solid transparent',
                 transition: 'all 0.15s ease',
               }}
             >
@@ -2261,7 +2261,7 @@ export default function App() {
         </div>
 
         {/* 底部操作按钮 */}
-        <div style={{ padding: '12px 16px', borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={{ padding: '12px 16px', borderTop: '1px solid rgba(139,92,246,0.15)', marginTop: 'auto', display: 'flex', gap: 8, alignItems: 'center', background: 'rgba(5,6,14,0.6)' }}>
           {/* 主导出按钮 */}
           <button
             onClick={() => setShowExportDialog(true)}
@@ -2269,20 +2269,21 @@ export default function App() {
               flex: 1,
               padding: '11px 14px',
               borderRadius: 12,
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              background: 'linear-gradient(135deg, #4F6EF7 0%, #8B5CF6 100%)',
               color: '#fff',
               border: 'none',
               cursor: 'pointer',
               fontWeight: 700,
-              fontSize: 14,
+              fontSize: 13,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: 7,
-              boxShadow: '0 4px 14px rgba(102,126,234,0.4)',
+              boxShadow: '0 4px 16px rgba(79,110,247,0.45)',
+              fontFamily: "'Inter', sans-serif",
             }}
           >
-            <Download size={15} />
+            <Download size={14} />
             高清导出
           </button>
 
@@ -2290,7 +2291,7 @@ export default function App() {
           <button
             onClick={() => setShowVideoExport(true)}
             title="导出动态视频"
-            style={{ padding: '11px 12px', borderRadius: 12, background: 'linear-gradient(135deg,#e85d04,#a855f7)', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13, flexShrink: 0 }}
+            style={{ padding: '11px 12px', borderRadius: 12, background: 'linear-gradient(135deg, rgba(236,72,153,0.8), rgba(139,92,246,0.8))', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13, flexShrink: 0, boxShadow: '0 4px 12px rgba(139,92,246,0.3)' }}
           >
             🎬
           </button>
@@ -2298,7 +2299,7 @@ export default function App() {
           {/* 快速保存 */}
           <button
             onClick={() => exportViaCanvas('phone-canvas')}
-            style={{ padding: '11px 14px', borderRadius: 12, background: 'linear-gradient(90deg,#10b981,#06b6d4)', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}
+            style={{ padding: '11px 14px', borderRadius: 12, background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', color: '#34D399', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}
           >
             快速保存
           </button>
@@ -2306,7 +2307,7 @@ export default function App() {
           {/* 历史 */}
           <button
             onClick={() => setHistoryOpen((s) => !s)}
-            style={{ padding: '11px 13px', borderRadius: 12, background: 'rgba(255,255,255,0.04)', color: '#fff', border: '1px solid rgba(255,255,255,0.06)', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
+            style={{ padding: '11px 13px', borderRadius: 12, background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
           >
             {historyOpen ? '关闭历史' : '历史'}
           </button>
