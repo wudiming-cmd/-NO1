@@ -183,34 +183,36 @@ function RegionDrawer({ videoRef, regions, onAdd, onRemove, drawType, active }: 
 function OutputPreview({ src, ratio, fill, color }: {
   src: string; ratio: string; fill: string; color: string;
 }) {
-  // CSS aspect-ratio 格式
   const asp = ratio.replace(":", " / ");
+  const isPortrait = ratio === "9:16" || ratio === "4:5";
+  const containerStyle: React.CSSProperties = isPortrait
+    ? { maxHeight: 220, aspectRatio: asp, margin: "0 auto" }
+    : { width: "100%", aspectRatio: asp, maxHeight: 180 };
+
   return (
-    <div className="flex flex-col gap-1.5 items-center">
-      <div className="relative rounded-xl overflow-hidden flex-shrink-0"
-        style={{ width: 90, aspectRatio: asp, background: "#000", border: `1.5px solid ${color}35` }}>
-        {/* 背景层：放大裁剪 + 模糊 / 镜像 / 纯黑 */}
+    <div className="flex flex-col gap-2">
+      <div className="relative rounded-2xl overflow-hidden"
+        style={{ background: "#000", border: `1.5px solid ${color}30`, boxShadow: `0 4px 20px ${color}18`, ...containerStyle }}>
+        {/* 背景层 */}
         {fill === "solid"
-          ? <div className="absolute inset-0" style={{ background: "#000" }} />
+          ? <div className="absolute inset-0" style={{ background: "#111" }} />
           : <video src={src} muted autoPlay loop playsInline
               className="absolute inset-0 w-full h-full"
-              style={{
-                objectFit: "cover",
-                filter: "blur(10px)",
-                transform: fill === "mirror" ? "scale(-1.08, 1.08)" : "scale(1.08)",
-              }} />
+              style={{ objectFit: "cover", filter: "blur(10px)", transform: fill === "mirror" ? "scale(-1.08,1.08)" : "scale(1.08)" }} />
         }
-        {/* 前景层：缩小适配，完整显示 */}
+        {/* 前景层 */}
         <video src={src} muted autoPlay loop playsInline
           className="absolute inset-0 w-full h-full"
           style={{ objectFit: "contain" }} />
         {/* 比例标签 */}
-        <div className="absolute bottom-1 right-1 text-white text-[9px] font-bold px-1 py-0.5 rounded"
-          style={{ background: "rgba(0,0,0,0.65)" }}>{ratio}</div>
+        <div className="absolute bottom-2 right-2 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-lg"
+          style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}>{ratio}</div>
+        {/* 填充方式 */}
+        <div className="absolute top-2 left-2 text-white text-[9px] font-semibold px-1.5 py-0.5 rounded-lg"
+          style={{ background: `${color}90`, backdropFilter: "blur(4px)" }}>
+          {fill === "blur" ? "模糊填充" : fill === "mirror" ? "镜像填充" : "纯色填充"}
+        </div>
       </div>
-      <p className="text-[10px] text-muted-foreground">
-        {fill === "blur" ? "模糊填充" : fill === "mirror" ? "镜像填充" : "黑边填充"}
-      </p>
     </div>
   );
 }
@@ -1044,15 +1046,13 @@ function F01() {
               {sel
                 ? <OutputPreview src={sel.previewUrl} ratio={ratio} fill={fill} color={color} />
                 : (
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-xl flex items-center justify-center"
-                      style={{ width: 56, height: 56, background: "#EEF1FB" }}>
-                      <div className="rounded-md flex items-center justify-center transition-all"
-                        style={{ width: dim.w * 0.9, height: dim.h * 0.9, background: color + "20", border: `1.5px solid ${color}40` }}>
-                        <span className="text-[6px] font-bold" style={{ color }}>{ratio}</span>
-                      </div>
+                  <div className="flex flex-col items-center gap-3 py-5 rounded-2xl"
+                    style={{ background: "#F4F6FD", border: `1.5px dashed ${color}30` }}>
+                    <div className="rounded-2xl flex items-center justify-center transition-all"
+                      style={{ width: Math.min(dim.w * 4, 100), height: Math.min(dim.h * 4, 100), background: color + "15", border: `2px solid ${color}35` }}>
+                      <span className="text-[12px] font-bold" style={{ color }}>{ratio}</span>
                     </div>
-                    <p className="text-xs text-muted-foreground">上传视频后查看实时效果</p>
+                    <p className="text-[11px] text-muted-foreground">上传视频后查看实时效果</p>
                   </div>
                 )
               }
