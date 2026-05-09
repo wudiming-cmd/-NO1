@@ -183,34 +183,47 @@ function RegionDrawer({ videoRef, regions, onAdd, onRemove, drawType, active }: 
 function OutputPreview({ src, ratio, fill, color }: {
   src: string; ratio: string; fill: string; color: string;
 }) {
-  const asp = ratio.replace(":", " / ");
-  const isPortrait = ratio === "9:16" || ratio === "4:5";
-  const containerStyle: React.CSSProperties = isPortrait
-    ? { maxHeight: 220, aspectRatio: asp, margin: "0 auto" }
-    : { width: "100%", aspectRatio: asp, maxHeight: 180 };
+  // 从比例字符串精确计算预览尺寸，避免 CSS aspect-ratio 的行为不稳定
+  const [rw, rh] = ratio.split(":").map(Number);
+  const isPortrait = rh > rw;
+  const MAX_H = 210, MAX_W = 260;
+  let pw: number, ph: number;
+  if (isPortrait) {
+    ph = Math.min(MAX_H, MAX_W * rh / rw);
+    pw = ph * rw / rh;
+  } else {
+    pw = MAX_W;
+    ph = pw * rh / rw;
+    if (ph > MAX_H) { ph = MAX_H; pw = ph * rw / rh; }
+  }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex justify-center">
       <div className="relative rounded-2xl overflow-hidden"
-        style={{ background: "#000", border: `1.5px solid ${color}30`, boxShadow: `0 4px 20px ${color}18`, ...containerStyle }}>
-        {/* 背景层 */}
+        style={{
+          width: pw, height: ph, flexShrink: 0,
+          background: "#000",
+          border: `1.5px solid ${color}35`,
+          boxShadow: `0 4px 20px ${color}20`,
+        }}>
+        {/* 背景层（模糊 / 镜像 / 纯色）*/}
         {fill === "solid"
           ? <div className="absolute inset-0" style={{ background: "#111" }} />
           : <video src={src} muted autoPlay loop playsInline
               className="absolute inset-0 w-full h-full"
               style={{ objectFit: "cover", filter: "blur(10px)", transform: fill === "mirror" ? "scale(-1.08,1.08)" : "scale(1.08)" }} />
         }
-        {/* 前景层 */}
+        {/* 前景层（完整适配）*/}
         <video src={src} muted autoPlay loop playsInline
           className="absolute inset-0 w-full h-full"
           style={{ objectFit: "contain" }} />
-        {/* 比例标签 */}
-        <div className="absolute bottom-2 right-2 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-lg"
-          style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}>{ratio}</div>
-        {/* 填充方式 */}
-        <div className="absolute top-2 left-2 text-white text-[9px] font-semibold px-1.5 py-0.5 rounded-lg"
-          style={{ background: `${color}90`, backdropFilter: "blur(4px)" }}>
-          {fill === "blur" ? "模糊填充" : fill === "mirror" ? "镜像填充" : "纯色填充"}
+        {/* 右下：比例标签 */}
+        <div className="absolute bottom-1.5 right-1.5 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md"
+          style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)" }}>{ratio}</div>
+        {/* 左上：填充方式 */}
+        <div className="absolute top-1.5 left-1.5 text-white text-[9px] font-semibold px-1.5 py-0.5 rounded-md"
+          style={{ background: `${color}bb`, backdropFilter: "blur(4px)" }}>
+          {fill === "blur" ? "模糊填充" : fill === "mirror" ? "镜像" : "纯色"}
         </div>
       </div>
     </div>
