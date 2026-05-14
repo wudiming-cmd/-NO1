@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+      <resources>
+          <item type="color" name="SuggestionStripView_colorAutoCorrect">@color/suggested_word_color</item>
+          <item type="color" name="SuggestionStripView_colorSuggested">@color/suggested_word_color</item>
+          <item type="color" name="SuggestionStripView_colorTypedWord">@color/suggested_word_color</item>
+          <item type="color" name="SuggestionStripView_colorValidTypedWord">@color/suggested_word_color</item>
+          <item type="color" name="emojiFunctionalColor">@color/key_text_color_functional</item>
+          <color name="key_hint_label_color">#ffFFFFFF</color>
+          <color name="key_hint_letter_color">#ffFFFFFF</color>
+          <item type="color" name="key_shifted_letter_hint_activated_color">@android:color/white</item>
+          <color name="key_shifted_letter_hint_inactivated_color">#2a353b</color>
+          <color name="key_text_color_functional">#ffFFFFFF</color>
+          <color name="key_text_color_normal">#ffFFFFFF</color>
+          <color name="key_text_color_pressed">#ffFFFFFF</color>
+          <color name="key_text_inactivated_color">#2a353b</color>
+          <item type="color" name="key_text_shadow_color">@android:color/transparent</item>
+          <color name="spacebar_text_color">#ffFFFFFF</color>
+          <color name="spacebar_text_shadow_color">#ffffff</color>
+          <color name="suggested_word_color">#ffFFFFFF</color>
+          <color name="key_preview_text_color">#ffFFFFFF</color>
+          <color name="more_keyboard_key_text_color_normal">#ffFFFFFF</color>
+          <color name="more_keyboard_key_text_color_pressed">#ffFFFFFF</color>
+          <color name="emoji_text_color">#ffFFFFFF</color>
+          <color name="isNewThemeFlag">#001</color>
+          <color name="emoji_bottom_bg_color">#000303</color>
+          <color name="emoji_bottom_btn_pressed_bg_color">#006fc4</color>
+          <color name="emoji_bottom_icon_normal_color">#ffFFFFFF</color>
+          <color name="emoji_tab_icon_normal_color">#ffFFFFFF</color>
+          <color name="emoji_tab_icon_pressed_color">#ffffff</color>
+          <color name="emojiCategoryIconStyle">#001</color>
+          <color name="lock_screen_font_color">#ffffff</color>
+          <color name="flat_keyboard_divider_line">#ffffffff</color>
+          <color name="flat_functional_key_pressed">#ffffffff</color>
+          <color name="flat_functional_key_normal">#ffffffff</color>
+          <color name="flat_functional_key_background_pressed">#ffffffff</color>
+          <color name="flat_functional_key_background_normal">#ffffffff</color>
+      </resources>

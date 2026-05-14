@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   X, Zap, Film, Wand2, Layers, Image, Type, Video,
   Scissors, Sparkles, Cpu, Download, Palette, Search,
-  RotateCcw, Move, Check,
+  RotateCcw, Check, Paintbrush, SlidersHorizontal, Grid2x2, FlaskConical,
 } from "lucide-react";
 
 const VIDEO_UPDATES = [
@@ -27,9 +27,21 @@ const IMAGE_UPDATES = [
   { icon: Download,  color: "#34D399", title: "4× 高清导出",       desc: "四倍分辨率导出为 PNG，导出记录自动保存，随时预览历史版本，支持视频序列导出" },
 ];
 
+const STYLE_UPDATES = [
+  { icon: Paintbrush,       color: "#F59E0B", title: "10 种风格预设",       desc: "乐高、玻璃风、磨砂风、动漫、像素风、油画、素描、赛博朋克、黏土风、扁平插画，一键切换" },
+  { icon: Grid2x2,          color: "#EF4444", title: "批量图片处理",        desc: "一次上传多张图片，选定风格后批量 AI 渲染，进度实时显示，处理完成逐张入库" },
+  { icon: Sparkles,         color: "#8B5CF6", title: "AI 风格迁移",         desc: "基于即梦 AI 大模型驱动，输入参考图或描述词即可精准迁移风格，效果媲美专业设计" },
+  { icon: Zap,              color: "#EC4899", title: "一键生成 & 下载",     desc: "点击「开始处理」全队列自动执行，完成后支持单张/全选批量下载，格式任选" },
+  { icon: SlidersHorizontal,color: "#10B981", title: "相似度 & 参数调节",   desc: "相似度滑块 0–1 连续调节，参照原图 / AI 发挥双模式，输出格式、比例、模型自由组合" },
+  { icon: FlaskConical,     color: "#06B6D4", title: "自定义风格创建",      desc: "上传品牌图标、填写专属 Prompt，创建私有风格预设，支持编辑与删除管理" },
+  { icon: Download,         color: "#F97316", title: "多格式导出",          desc: "支持 PNG / JPG / WEBP 输出，9:16 / 1:1 / 16:9 / 4:5 / 3:4 五种比例，满足全平台投放需求" },
+  { icon: Search,           color: "#7C3AED", title: "处理结果画廊",        desc: "结果区网格展示，可缩放 50%–200%，勾选多张一键打包下载，风格标签清晰标注" },
+];
+
 const TABS = [
-  { id: "video", label: "视频批量剪辑", icon: Film, gradient: "linear-gradient(135deg,#4F6EF7,#764BA2)", color: "#4F6EF7", items: VIDEO_UPDATES },
-  { id: "image", label: "AI 图片编辑",  icon: Wand2, gradient: "linear-gradient(135deg,#A855F7,#EC4899)", color: "#A855F7", items: IMAGE_UPDATES },
+  { id: "video", label: "视频批量剪辑",  icon: Film,     gradient: "linear-gradient(135deg,#4F6EF7,#764BA2)", color: "#4F6EF7", items: VIDEO_UPDATES },
+  { id: "image", label: "控制中心定制",  icon: Wand2,    gradient: "linear-gradient(135deg,#A855F7,#EC4899)", color: "#A855F7", items: IMAGE_UPDATES },
+  { id: "style", label: "AI 图像风格化", icon: Paintbrush, gradient: "linear-gradient(135deg,#F59E0B,#EF4444)", color: "#F59E0B", items: STYLE_UPDATES },
 ];
 
 interface Props { onClose: () => void }
@@ -173,10 +185,10 @@ export default function WhatsNewModal({ onClose }: Props) {
                   background: "linear-gradient(135deg, #fff 0%, #C4C9FF 50%, #B57BFF 100%)",
                   WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
                   letterSpacing: "-0.5px",
-                }}>平台重磅升级，双工作区全新上线</h2>
+                }}>平台重磅升级，三大工作区全新上线</h2>
 
                 <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", margin: 0, lineHeight: 1.6 }}>
-                  视频批量剪辑 + AI 图片编辑，两大工作区现已合并到统一平台，共 16 项核心功能
+                  视频剪辑 + 控制中心定制 + AI 图像风格化，三大工作区合并统一平台，共 24 项核心功能
                 </p>
               </div>
 

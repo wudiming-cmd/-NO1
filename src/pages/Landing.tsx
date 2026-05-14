@@ -1,7 +1,9 @@
 import { useNavigate } from "react-router";
-import { Film, Wand2, Sparkles, ArrowRight, Zap, Layers, Image, Type, Video, Scissors, Bell } from "lucide-react";
+import { Film, Wand2, Sparkles, ArrowRight, Zap, Layers, Image, Type, Video, Scissors, Bell, LogOut, User } from "lucide-react";
 import { useEffect, useRef, useState, useCallback } from "react";
 import WhatsNewModal from "./WhatsNewModal";
+import AuthModal from "./AuthModal";
+import { useAuth } from "../contexts/AuthContext";
 
 const WORKSPACES = [
   {
@@ -29,23 +31,41 @@ const WORKSPACES = [
     gradient: "linear-gradient(135deg, #A855F7, #EC4899)",
     color1: "#A855F7",
     color2: "#EC4899",
-    title: "AI 图片编辑",
-    subtitle: "智能化全自动图片编辑",
+    title: "控制中心定制",
+    subtitle: "iOS 控制中心自由设计",
     features: [
-      { icon: Image, label: "背景替换" },
-      { icon: Layers, label: "模块合成" },
+      { icon: Image, label: "模块编辑" },
+      { icon: Layers, label: "图上图叠加" },
       { icon: Sparkles, label: "AI 生图" },
-      { icon: Zap, label: "批量导出" },
+      { icon: Zap, label: "批量填充" },
       { icon: Type, label: "样式编辑" },
-      { icon: Video, label: "视频导出" },
+      { icon: Video, label: "高清导出" },
     ],
     path: "/image",
     badge: "AI 驱动",
   },
+  {
+    id: "image-style",
+    icon: Sparkles,
+    gradient: "linear-gradient(135deg, #F59E0B, #EF4444)",
+    color1: "#F59E0B",
+    color2: "#EF4444",
+    title: "AI 图像风格化",
+    subtitle: "一键批量图片风格迁移",
+    features: [
+      { icon: Image, label: "风格预设" },
+      { icon: Layers, label: "批量处理" },
+      { icon: Sparkles, label: "AI 风格迁移" },
+      { icon: Zap, label: "一键生成" },
+      { icon: Type, label: "参数调节" },
+      { icon: Video, label: "多格式导出" },
+    ],
+    path: "/image-style",
+    badge: "新上线",
+  },
 ];
 
-function Card3D({ ws, onEnter }: { ws: typeof WORKSPACES[0]; onEnter: () => void }) {
-  const navigate = useNavigate();
+function Card3D({ ws, onEnter, onClick }: { ws: typeof WORKSPACES[0]; onEnter: () => void; onClick: () => void }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [tilt, setTilt] = useState({ rx: 0, ry: 0 });
   const [glow, setGlow] = useState({ x: 50, y: 50 });
@@ -80,12 +100,13 @@ function Card3D({ ws, onEnter }: { ws: typeof WORKSPACES[0]; onEnter: () => void
       onMouseMove={handleMove}
       onMouseEnter={() => { setHovered(true); onEnter(); }}
       onMouseLeave={handleLeave}
-      onClick={() => navigate(ws.path)}
+      onClick={onClick}
       style={{
         perspective: "1000px",
         cursor: "pointer",
         flex: 1,
         minWidth: 0,
+        height: 420,
       }}
     >
       {/* Animated gradient border wrapper */}
@@ -185,7 +206,7 @@ function Card3D({ ws, onEnter }: { ws: typeof WORKSPACES[0]; onEnter: () => void
           <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginBottom: 20 }}>{ws.subtitle}</p>
 
           {/* Feature pills */}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 24 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 24, overflow: "hidden", maxHeight: 90 }}>
             {ws.features.map((f) => {
               const FIcon = f.icon;
               return (
@@ -268,13 +289,29 @@ function spawnMeteor(W: number, H: number): Meteor {
 }
 
 export default function Landing() {
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [showAuth, setShowAuth] = useState(false);
+  const [pendingPath, setPendingPath] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
   const mouseRef = useRef({ x: -999, y: -999 }); // px coords
   const cursorRef = useRef<HTMLDivElement>(null);
   const cursorDotRef = useRef<HTMLDivElement>(null);
+
+  // 登录成功后跳转
+  useEffect(() => {
+    if (user && pendingPath) {
+      navigate(pendingPath);
+      setPendingPath(null);
+    }
+  }, [user, pendingPath, navigate]);
+
+  const handleCardClick = (path: string) => {
+    navigate(path);
+  };
 
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 50);
@@ -573,7 +610,7 @@ export default function Landing() {
             onClick={() => setShowModal(true)}
             style={{
               display: "inline-flex", alignItems: "center", gap: 6,
-              padding: "6px 12px 6px 8px", borderRadius: 99, border: "none",
+              padding: "6px 12px 6px 8px", borderRadius: 99,
               background: "linear-gradient(135deg, rgba(79,110,247,0.2), rgba(168,85,247,0.2))",
               border: "1px solid rgba(168,85,247,0.3)",
               color: "#C4B5FD", fontSize: 12, fontWeight: 700,
@@ -594,6 +631,50 @@ export default function Landing() {
             <Bell size={12} />
             ✦ v2.0 新功能
           </button>
+
+          {/* Auth area */}
+          {user ? (
+            /* 已登录：用户名 + 退出 */
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "5px 10px 5px 8px", borderRadius: 99,
+              background: "rgba(139,92,246,0.12)", border: "1px solid rgba(139,92,246,0.25)",
+              backdropFilter: "blur(12px)",
+            }}>
+              <div style={{
+                width: 22, height: 22, borderRadius: 8,
+                background: "linear-gradient(135deg,#8B5CF6,#ec4899)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <User size={11} color="white" />
+              </div>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#c4b5fd" }}>{user.username}</span>
+              <button onClick={logout} title="退出登录" style={{
+                background: "none", border: "none", cursor: "pointer", padding: 2,
+                color: "rgba(255,255,255,0.3)", display: "flex", alignItems: "center",
+                transition: "color 0.2s",
+              }}
+                onMouseEnter={e => (e.currentTarget.style.color = "#f87171")}
+                onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.3)")}
+              >
+                <LogOut size={12} />
+              </button>
+            </div>
+          ) : (
+            /* 未登录：登录按钮 */
+            <button onClick={() => setShowAuth(true)} style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "6px 14px", borderRadius: 99, border: "none",
+              background: "linear-gradient(135deg, #667eea, #8B5CF6)",
+              color: "#fff", fontSize: 12, fontWeight: 700,
+              cursor: "pointer", boxShadow: "0 4px 16px rgba(139,92,246,0.4)",
+              transition: "all 0.2s",
+            }}
+              onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.05)"; e.currentTarget.style.boxShadow = "0 6px 22px rgba(139,92,246,0.55)"; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = "0 4px 16px rgba(139,92,246,0.4)"; }}
+            >
+              登录 / 注册
+            </button>
+          )}
         </div>
 
         {/* Headline */}
@@ -616,11 +697,13 @@ export default function Landing() {
         {/* Cards */}
         <div style={{
           ...anim(0.2),
-          display: "flex", gap: 20, width: "100%",
-          flexDirection: "row",
+          display: "flex", gap: 16, width: "100%",
+          flexDirection: "row", flexWrap: "wrap", justifyContent: "center", alignItems: "stretch",
         }}>
           {WORKSPACES.map((ws) => (
-            <Card3D key={ws.id} ws={ws} onEnter={() => {}} />
+            <div key={ws.id} style={{ flex: "1 1 220px", minWidth: 0, maxWidth: 320 }}>
+              <Card3D ws={ws} onEnter={() => {}} onClick={() => handleCardClick(ws.path)} />
+            </div>
           ))}
         </div>
 
@@ -644,6 +727,9 @@ export default function Landing() {
 
       {/* What's New Modal */}
       {showModal && <WhatsNewModal onClose={() => setShowModal(false)} />}
+
+      {/* Auth Modal */}
+      {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
     </div>
   );
 }

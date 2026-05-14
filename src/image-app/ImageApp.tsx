@@ -12,10 +12,12 @@ import WelcomeModal from './components/WelcomeModal';
 import VideoExportModal from './components/VideoExportModal';
 import BatchPanel from './components/BatchPanel';
 import ModuleQuickNav from './components/ModuleQuickNav';
+import BatchBgGenerator from './components/BatchBgGenerator';
 import {
   Plane, Music, Flashlight, AlarmClock, Moon, Sun, Volume2,
   Calculator, Camera, RotateCw, Bell, Battery, Settings,
   Wifi, Bluetooth, Radio, Sparkles, Download, Wand2,
+  AudioLines, ScanLine, Circle, Maximize2,
 } from 'lucide-react';
 // TrendingPanel removed
 import ImageSearchPanel from './components/ImageSearchPanel';
@@ -60,9 +62,9 @@ export default function App() {
   const gridCellHeight = 177;
   const gridGap = 33;
   const gridOriginLeft = 137;
-  const gridOriginTop = 240;
+  const gridOriginTop = 140;
   const gridColumns = 4;
-  const gridRows = 6;
+  const gridRows = 7;
   const zoom = 0.45;
   const gridWidth = gridColumns * gridCellWidth + (gridColumns - 1) * gridGap;
   const gridHeight = gridRows * gridCellHeight + (gridRows - 1) * gridGap;
@@ -634,12 +636,52 @@ export default function App() {
       iconColor: '#FFFFFF',
     },
     {
-      // 电量
+      // 声音识别
+      id: 'sound',
+      icon: AudioLines,
+      iconName: 'AudioLines',
+      position: { left: 137, top: 1290, width: 177, height: 177, borderRadius: 142 },
+      gridX: 1, gridY: 6, widthUnits: 1, heightUnits: 1,
+      backgroundColor: '#1c1c1e',
+      iconColor: '#FFFFFF',
+    },
+    {
+      // 设置
+      id: 'settings',
+      icon: Settings,
+      iconName: 'Settings',
+      position: { left: 347, top: 1290, width: 177, height: 177, borderRadius: 142 },
+      gridX: 2, gridY: 6, widthUnits: 1, heightUnits: 1,
+      backgroundColor: '#1c1c1e',
+      iconColor: '#FFFFFF',
+    },
+    {
+      // 截图
+      id: 'screenshot',
+      icon: ScanLine,
+      iconName: 'ScanLine',
+      position: { left: 557, top: 1290, width: 177, height: 177, borderRadius: 142 },
+      gridX: 3, gridY: 6, widthUnits: 1, heightUnits: 1,
+      backgroundColor: '#1c1c1e',
+      iconColor: '#FFFFFF',
+    },
+    {
+      // 录屏
+      id: 'record',
+      icon: Circle,
+      iconName: 'Circle',
+      position: { left: 767, top: 1290, width: 177, height: 177, borderRadius: 142 },
+      gridX: 4, gridY: 6, widthUnits: 1, heightUnits: 1,
+      backgroundColor: '#1c1c1e',
+      iconColor: '#FFFFFF',
+    },
+    {
+      // 电量 — 移至第7行
       id: 'battery',
       icon: Battery,
       iconName: 'Battery',
-      position: { left: 137, top: 1290, width: 177, height: 177, borderRadius: 142 },
-      gridX: 1, gridY: 6, widthUnits: 1, heightUnits: 1,
+      position: { left: 137, top: 1500, width: 177, height: 177, borderRadius: 142 },
+      gridX: 1, gridY: 7, widthUnits: 1, heightUnits: 1,
       backgroundColor: '#1c1c1e',
       iconColor: '#FFFFFF',
     },

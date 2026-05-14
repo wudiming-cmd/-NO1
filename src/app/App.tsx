@@ -9,7 +9,7 @@ import {
 
 const API = "https://no1-22o9.onrender.com";
 
-type FeatureId = "F01" | "F02" | "F03" | "F04" | "F05" | "F06";
+type FeatureId = "F01" | "F02" | "F03" | "F04" | "F05" | "F06" | "F07";
 type ProcessState = "idle" | "processing" | "done" | "error";
 
 // ── 全局操作员（自动附带到所有 API 请求）──────────────────────────────────────
@@ -478,6 +478,15 @@ const MODULES = [
     gradient: "linear-gradient(135deg, #F59E0B 0%, #EF4444 100%)",
     color: "#F59E0B",
   },
+  {
+    id: "F07" as FeatureId,
+    label: "键盘对话动效",
+    sub: "聊天框 + AI 键盘动画",
+    priority: "P1",
+    icon: <MessageSquare size={16} strokeWidth={1.8} />,
+    gradient: "linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%)",
+    color: "#8B5CF6",
+  },
 ] as const;
 
 // ─── Primitives ───────────────────────────────────────────────────────────────
@@ -791,6 +800,8 @@ function F01() {
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [selId, setSelId] = useState<string | null>(null);
   const [ratio, setRatio] = useState("9:16");
+  const [customW, setCustomW] = useState(1080);
+  const [customH, setCustomH] = useState(1920);
   const [fill, setFill] = useState("blur");
   const [unifiedName, setUnifiedName] = useState("");
   const [outroFile, setOutroFile] = useState<File | null>(null);
@@ -830,6 +841,7 @@ function F01() {
     const fd = new FormData();
     fd.append("video", item.file);
     fd.append("ratio", ratio); fd.append("fill", fill);
+    if (ratio === "custom") { fd.append("customW", String(customW)); fd.append("customH", String(customH)); }
     fd.append("startTime", String(item.clipConfig.startTime));
     if (item.clipConfig.endTime != null) fd.append("endTime", String(item.clipConfig.endTime));
     fd.append("speed", String(item.clipConfig.speed));
@@ -1039,8 +1051,70 @@ function F01() {
                 { label: "1:1   方形（Instagram Feed）", value: "1:1" },
                 { label: "4:5   纵向（Instagram 广告）", value: "4:5" },
                 { label: "16:9  横版（YouTube）", value: "16:9" },
+                { label: "📐 自定义尺寸…", value: "custom" },
               ]} />
             </div>
+            {ratio === "custom" && (
+              <div>
+                <FieldLabel>自定义分辨率（像素）</FieldLabel>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1">
+                    <div className="text-[10px] text-muted-foreground mb-1">宽度 W</div>
+                    <input
+                      type="number"
+                      value={customW}
+                      min={240} max={7680} step={2}
+                      onChange={e => setCustomW(Math.max(2, Math.round(Number(e.target.value) / 2) * 2))}
+                      className="w-full rounded-xl px-3 py-2 text-sm font-semibold outline-none border transition-all"
+                      style={{
+                        background: "#F4F6FD",
+                        border: `1.5px solid ${color}30`,
+                        color: "#1a1a2e",
+                      }}
+                      onFocus={e => (e.currentTarget.style.borderColor = color + "80")}
+                      onBlur={e => (e.currentTarget.style.borderColor = color + "30")}
+                    />
+                  </div>
+                  <div className="text-[18px] font-light text-muted-foreground mt-4">×</div>
+                  <div className="flex-1">
+                    <div className="text-[10px] text-muted-foreground mb-1">高度 H</div>
+                    <input
+                      type="number"
+                      value={customH}
+                      min={240} max={7680} step={2}
+                      onChange={e => setCustomH(Math.max(2, Math.round(Number(e.target.value) / 2) * 2))}
+                      className="w-full rounded-xl px-3 py-2 text-sm font-semibold outline-none border transition-all"
+                      style={{
+                        background: "#F4F6FD",
+                        border: `1.5px solid ${color}30`,
+                        color: "#1a1a2e",
+                      }}
+                      onFocus={e => (e.currentTarget.style.borderColor = color + "80")}
+                      onBlur={e => (e.currentTarget.style.borderColor = color + "30")}
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-2 flex-wrap">
+                  {[
+                    { label: "1080×1920", w: 1080, h: 1920 },
+                    { label: "1080×1080", w: 1080, h: 1080 },
+                    { label: "1920×1080", w: 1920, h: 1080 },
+                    { label: "720×1280", w: 720, h: 1280 },
+                    { label: "2160×3840", w: 2160, h: 3840 },
+                  ].map(p => (
+                    <button key={p.label} onClick={() => { setCustomW(p.w); setCustomH(p.h); }}
+                      className="px-2 py-0.5 rounded-lg text-[10px] font-semibold transition-all"
+                      style={{
+                        background: customW === p.w && customH === p.h ? color + "15" : "white",
+                        border: `1px solid ${customW === p.w && customH === p.h ? color + "50" : "rgba(18,21,42,0.1)"}`,
+                        color: customW === p.w && customH === p.h ? color : "#64748b",
+                      }}>
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div>
               <FieldLabel>边缘填充方式</FieldLabel>
               <StyledSelect value={fill} onChange={setFill} options={[
@@ -1057,13 +1131,13 @@ function F01() {
             <div>
               <FieldLabel>输出效果预览</FieldLabel>
               {sel
-                ? <OutputPreview src={sel.previewUrl} ratio={ratio} fill={fill} color={color} />
+                ? <OutputPreview src={sel.previewUrl} ratio={ratio === "custom" ? `${customW}:${customH}` : ratio} fill={fill} color={color} />
                 : (
                   <div className="flex flex-col items-center gap-3 py-5 rounded-2xl"
                     style={{ background: "#F4F6FD", border: `1.5px dashed ${color}30` }}>
                     <div className="rounded-2xl flex items-center justify-center transition-all"
                       style={{ width: Math.min(dim.w * 4, 100), height: Math.min(dim.h * 4, 100), background: color + "15", border: `2px solid ${color}35` }}>
-                      <span className="text-[12px] font-bold" style={{ color }}>{ratio}</span>
+                      <span className="text-[12px] font-bold" style={{ color }}>{ratio === "custom" ? `${customW}×${customH}` : ratio}</span>
                     </div>
                     <p className="text-[11px] text-muted-foreground">上传视频后查看实时效果</p>
                   </div>
@@ -2883,6 +2957,745 @@ function F06() {
   );
 }
 
+// ─── F07: 键盘对话动效 ────────────────────────────────────────────────────────
+function F07() {
+  const color = "#8B5CF6";
+  const fileInputRef     = useRef<HTMLInputElement>(null);
+  const kbBgInputRef     = useRef<HTMLInputElement>(null);
+  const avatarInputRef   = useRef<HTMLInputElement>(null);
+  const myAvatarInputRef = useRef<HTMLInputElement>(null);
+  const phoneFrameRef    = useRef<HTMLDivElement>(null);    // 手机预览区 ref
+
+  // 对话消息
+  const [messages, setMessages] = useState([
+    { id: 1, from: "them", text: "Hey, babe, what are you doing?", font: "script" },
+    { id: 2, from: "me",   text: "Your SMS text is so cool, how do you do it?", font: "normal" },
+    { id: 3, from: "them", text: "Try kika keyboard", font: "script" },
+  ]);
+  const [newMsg, setNewMsg] = useState("");
+  const [newSender, setNewSender] = useState<"me" | "them">("them");
+  const [newFont, setNewFont] = useState<"normal" | "script" | "bold">("script");
+
+  // 键盘背景
+  const [kbBg, setKbBg] = useState<string | null>(null);
+  const [kbTheme, setKbTheme] = useState<"dark" | "purple" | "neon">("purple");
+  const [kbAnim, setKbAnim] = useState<"none" | "pulse" | "glow" | "shake">("glow");
+  const [kbAnimSpeed, setKbAnimSpeed] = useState(1.0);
+
+  // ── 键盘动画 API 入口（AI 将键盘静态图生成为动态视频）────────────────────────
+  const [kbVideoMode,   setKbVideoMode]   = useState(false);   // 启用视频动画
+  const [kbVideoResult, setKbVideoResult] = useState("");       // AI 返回的视频 URL
+  const [kbApiKey,      setKbApiKey]      = useState("");       // API Key
+  const [kbApiUrl,      setKbApiUrl]      = useState("");       // API 端点
+  const [kbApiLoading,  setKbApiLoading]  = useState(false);   // 生成中
+  const [kbApiError,    setKbApiError]    = useState("");       // 错误信息
+  const kbVideoRef = useRef<HTMLVideoElement>(null);
+
+  // 头像（左右分开）
+  const [myAvatar,    setMyAvatar]    = useState<string | null>(null);  // 右侧"我"
+  const [theirAvatar, setTheirAvatar] = useState<string | null>(null);  // 左侧"对方"
+  // 气泡颜色
+  const [myBubbleBg,    setMyBubbleBg]    = useState("rgba(20,40,180,0.85)");
+  const [theirBubbleBg, setTheirBubbleBg] = useState("rgba(255,255,255,0.92)");
+  const [chatBg, setChatBg] = useState<"dark" | "blur" | "gradient">("dark");
+
+  // 预览 & 导出
+  const [exporting, setExporting] = useState(false);
+  const [exportDone, setExportDone] = useState(false);
+
+  const addMessage = () => {
+    if (!newMsg.trim()) return;
+    setMessages(p => [...p, { id: Date.now(), from: newSender, text: newMsg.trim(), font: newFont }]);
+    setNewMsg("");
+  };
+
+  const removeMessage = (id: number) => setMessages(p => p.filter(m => m.id !== id));
+
+  const handleExport = async () => {
+    const el = phoneFrameRef.current;
+    if (!el) return;
+    setExporting(true);
+    setExportDone(false);
+
+    try {
+      // ── 方案：html2canvas 截图手机预览区，再用 Canvas + MediaRecorder 录制成 MP4 ──
+      const html2canvas = (await import("html2canvas")).default;
+
+      // 录制时长（秒）
+      const DURATION = 4;
+      const FPS = 30;
+
+      // 1. 先截一帧确认尺寸
+      const snap = await html2canvas(el, { useCORS: true, allowTaint: true, scale: 2 });
+      const W = snap.width;
+      const H = snap.height;
+
+      // 2. 创建离屏 canvas 用于录制
+      const recCanvas = document.createElement("canvas");
+      recCanvas.width = W;
+      recCanvas.height = H;
+      const rctx = recCanvas.getContext("2d")!;
+
+      // 3. MediaRecorder
+      const stream = recCanvas.captureStream(FPS);
+      const recorder = new MediaRecorder(stream, {
+        mimeType: MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
+          ? "video/webm;codecs=vp9"
+          : "video/webm",
+      });
+      const chunks: Blob[] = [];
+      recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+
+      recorder.start();
+
+      // 4. 每帧重新截图写入 canvas
+      const frameInterval = 1000 / FPS;
+      const totalFrames = DURATION * FPS;
+      for (let i = 0; i < totalFrames; i++) {
+        const frame = await html2canvas(el, { useCORS: true, allowTaint: true, scale: 2 });
+        rctx.clearRect(0, 0, W, H);
+        rctx.drawImage(frame, 0, 0);
+        await new Promise(r => setTimeout(r, frameInterval));
+      }
+
+      recorder.stop();
+
+      // 5. 等录制完成，下载
+      await new Promise<void>(resolve => { recorder.onstop = () => resolve(); });
+      const blob = new Blob(chunks, { type: "video/webm" });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      a.href     = url;
+      a.download = `keyboard-chat-${Date.now()}.webm`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      setExportDone(true);
+      setTimeout(() => setExportDone(false), 3000);
+    } catch (err) {
+      console.error("导出失败", err);
+      alert("导出失败：" + (err as Error).message);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const FONT_STYLES: Record<string, React.CSSProperties> = {
+    normal: { fontFamily: "sans-serif" },
+    script: { fontFamily: "'Segoe Script', 'Brush Script MT', cursive", fontSize: 15 },
+    bold:   { fontFamily: "sans-serif", fontWeight: 800 },
+  };
+
+  const THEME_COLORS: Record<string, { key: string; row: string; bg: string }> = {
+    dark:   { key: "rgba(60,60,80,0.9)",   row: "rgba(30,30,45,0.85)", bg: "#1a1a2e" },
+    purple: { key: "rgba(80,40,140,0.9)",  row: "rgba(50,20,100,0.85)", bg: "#120820" },
+    neon:   { key: "rgba(0,200,180,0.25)", row: "rgba(0,40,60,0.85)",  bg: "#001a20" },
+  };
+  const theme = THEME_COLORS[kbTheme];
+
+  const ANIM_CSS: Record<string, string> = {
+    none:  "",
+    pulse: "pulse 2s ease-in-out infinite",
+    glow:  "glow 1.5s ease-in-out infinite alternate",
+    shake: "shake 0.5s ease-in-out infinite",
+  };
+
+  return (
+    <div className="flex gap-5">
+      <style>{`
+        @keyframes glow { from { filter: brightness(1); } to { filter: brightness(1.4) drop-shadow(0 0 12px #8B5CF6); } }
+        @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.02); } }
+        @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-2px); } 75% { transform: translateX(2px); } }
+      `}</style>
+
+      {/* ── 左：预览区 ── */}
+      <div className="flex-1 min-w-0">
+        <Card>
+          <div className="flex items-center gap-2 mb-4">
+            <ModuleIcon gradient="linear-gradient(135deg,#8B5CF6,#EC4899)" icon={<MessageSquare size={16} />} />
+            <div>
+              <div className="font-bold text-sm">键盘对话动效预览</div>
+              <div className="text-xs text-muted-foreground">实时预览 · 键盘动效 + 聊天界面</div>
+            </div>
+          </div>
+
+          {/* Phone frame — iPhone 15  393×852 */}
+          {(() => {
+            const phoneW = 260;
+            const phoneH = Math.round(phoneW * 852 / 393);
+            // 主题资源路径（keyboard-theme2）
+            const chatBgSrc = kbBg || "/keyboard-theme2/package/drawable-xxhdpi/keyboard_background.jpg";
+            const kbBgSrc   = kbBg || "/keyboard-theme2/package/drawable-xxhdpi/keyboard_preview.jpg";
+            // colors.xml: emoji_bottom_bg_color
+            const EMOJI_BAR = "#000303";
+
+            return (
+              <div ref={phoneFrameRef} style={{
+                width: phoneW, height: phoneH, margin: "0 auto",
+                borderRadius: 40, border: "3px solid #111",
+                boxShadow: "0 24px 64px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.06)",
+                position: "relative", overflow: "hidden",
+                display: "flex", flexDirection: "column",
+                background: "#000",
+                animation: kbAnim !== "none" ? ANIM_CSS[kbAnim] : undefined,
+                animationDuration: `${(2 / kbAnimSpeed).toFixed(1)}s`,
+              }}>
+                {/* Dynamic Island */}
+                <div style={{ position: "absolute", top: 8, left: "50%", transform: "translateX(-50%)", width: 80, height: 22, borderRadius: 20, background: "#000", zIndex: 30, boxShadow: "0 0 0 2px #111" }} />
+
+                {/* ── 聊天区背景：keyboard_background.jpg + 虚化，只盖上半部分 ── */}
+                <img src={chatBgSrc} alt="" style={{
+                  position: "absolute", top: 0, left: 0, right: 0,
+                  width: "108%", height: "62%",
+                  left: "-4%",
+                  objectFit: "cover", zIndex: 0,
+                  filter: "brightness(0.65) blur(8px)",
+                }} />
+
+                {/* ── Status bar ── */}
+                <div style={{ position: "relative", zIndex: 10, padding: "44px 14px 2px", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
+                  <span style={{ fontSize: 9, color: "#fff", fontWeight: 700 }}>12:30</span>
+                  <span style={{ fontSize: 8, color: "#fff" }}>▌▌▌ ☁ 100% 🔋</span>
+                </div>
+
+                {/* ── Chat header ── */}
+                <div style={{
+                  position: "relative", zIndex: 10, flexShrink: 0,
+                  padding: "4px 10px 6px",
+                  display: "flex", alignItems: "center", gap: 7,
+                  borderBottom: "1px solid rgba(255,255,255,0.1)",
+                }}>
+                  <span style={{ fontSize: 16, color: "#fff", lineHeight: 1 }}>‹</span>
+                  {/* 对方头像（左侧） */}
+                  <div style={{ width: 30, height: 30, borderRadius: "50%", overflow: "hidden", background: "#333", flexShrink: 0, border: "2px solid rgba(255,255,255,0.25)" }}>
+                    {theirAvatar
+                      ? <img src={theirAvatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>🦊</div>}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: "#fff" }}>Kookii</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 10, color: "rgba(255,255,255,0.75)", fontSize: 12 }}>
+                    <span>📹</span><span>📞</span><span>⋮</span>
+                  </div>
+                </div>
+
+                {/* ── Messages — 固定高度，不撑满，键盘占底部 ── */}
+                <div style={{
+                  position: "relative", zIndex: 10,
+                  flex: "0 0 auto",
+                  height: Math.round(phoneH * 0.38),   // 约38%高度给消息区
+                  padding: "10px 8px 6px",
+                  display: "flex", flexDirection: "column", justifyContent: "flex-start", gap: 8,
+                  overflowY: "auto",
+                }}>
+                  {messages.map(msg => (
+                    <div key={msg.id} style={{
+                      display: "flex",
+                      flexDirection: "row",
+                      justifyContent: msg.from === "me" ? "flex-end" : "flex-start",
+                      alignItems: "center",
+                      gap: 5,
+                    }}>
+
+                      {/* ── 对方（左）：头像 + 白色气泡 ── */}
+                      {msg.from === "them" && (<>
+                        {/* 头像圆 */}
+                        <div style={{
+                          width: 30, height: 30, borderRadius: "50%",
+                          overflow: "hidden", flexShrink: 0,
+                          background: "#444",
+                          border: "2px solid rgba(255,255,255,0.25)",
+                          boxShadow: "0 2px 6px rgba(0,0,0,0.4)",
+                        }}>
+                          {theirAvatar
+                            ? <img src={theirAvatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            : <span style={{ fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>🦊</span>}
+                        </div>
+                        {/* 白色气泡 */}
+                        <div style={{
+                          maxWidth: "60%",
+                          padding: "7px 12px",
+                          borderRadius: 20,
+                          background: theirBubbleBg,
+                          color: "#111",
+                          fontSize: 10, lineHeight: 1.5,
+                          boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+                          ...FONT_STYLES[msg.font],
+                        }}>{msg.text}</div>
+                      </>)}
+
+                      {/* ── 我（右）：🎙 + 深色气泡(白边) + A⁺ + 头像圆 ── */}
+                      {msg.from === "me" && (<>
+                        {/* 麦克风按钮 */}
+                        <div style={{
+                          width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
+                          background: "rgba(100,80,200,0.75)",
+                          border: "1.5px solid rgba(255,255,255,0.35)",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          fontSize: 10, boxShadow: "0 2px 6px rgba(0,0,0,0.3)",
+                        }}>🎙</div>
+
+                        {/* 深色气泡 + 白色边框 */}
+                        <div style={{
+                          maxWidth: "55%",
+                          padding: "7px 12px",
+                          borderRadius: 20,
+                          background: myBubbleBg,
+                          border: "2px solid rgba(255,255,255,0.55)",
+                          color: "#fff",
+                          fontSize: 10, lineHeight: 1.5,
+                          boxShadow: "0 2px 10px rgba(0,0,0,0.35)",
+                          ...FONT_STYLES[msg.font],
+                        }}>{msg.text}</div>
+
+                        {/* A⁺ 图标 */}
+                        <div style={{
+                          width: 18, height: 18, borderRadius: "50%", flexShrink: 0,
+                          background: "rgba(255,255,255,0.15)",
+                          border: "1px solid rgba(255,255,255,0.35)",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          fontSize: 7, color: "#fff", fontWeight: 800,
+                          boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+                        }}>A⁺</div>
+
+                        {/* 我的头像圆 */}
+                        <div style={{
+                          width: 30, height: 30, borderRadius: "50%",
+                          overflow: "hidden", flexShrink: 0,
+                          background: "#444",
+                          border: "2px solid rgba(255,255,255,0.25)",
+                          boxShadow: "0 2px 6px rgba(0,0,0,0.4)",
+                        }}>
+                          {myAvatar
+                            ? <img src={myAvatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            : <span style={{ fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>🐱</span>}
+                        </div>
+                      </>)}
+
+                    </div>
+                  ))}
+                </div>
+
+                {/* ── Input bar ── */}
+                <div style={{
+                  position: "relative", zIndex: 10, flexShrink: 0,
+                  padding: "5px 8px",
+                  display: "flex", gap: 5, alignItems: "center",
+                  background: "rgba(10,5,30,0.92)",
+                  borderTop: "1px solid rgba(255,255,255,0.06)",
+                }}>
+                  <span style={{ fontSize: 16, color: "rgba(255,255,255,0.5)" }}>+</span>
+                  <div style={{ flex: 1, background: "rgba(255,255,255,0.1)", borderRadius: 12, padding: "5px 10px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>Escribe un mensaje</span>
+                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>⌨</span>
+                  </div>
+                  <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>📷</span>
+                  <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>🎤</span>
+                </div>
+
+                {/* ── Emoji category bar (colors.xml: emoji_bottom_bg_color #000303) ── */}
+                <div style={{
+                  position: "relative", zIndex: 10, flexShrink: 0,
+                  padding: "5px 6px 4px",
+                  display: "flex", justifyContent: "space-around",
+                  background: EMOJI_BAR,
+                  borderTop: "1px solid rgba(255,255,255,0.05)",
+                }}>
+                  {["🕐","😊","⏰","☕","⚽","🚗","💡","🚩","❤"].map(ic => (
+                    <span key={ic} style={{ fontSize: 13, opacity: 0.8 }}>{ic}</span>
+                  ))}
+                </div>
+
+                {/* ── Keyboard 区域 ── */}
+                <div style={{
+                  position: "relative", zIndex: 10, flexShrink: 0,
+                  animation: kbAnim !== "none" ? ANIM_CSS[kbAnim] : undefined,
+                  animationDuration: `${(2 / kbAnimSpeed).toFixed(1)}s`,
+                }}>
+                  {/* 📌 键盘区域 — AI 生成视频则播放，否则静态图 */}
+                  {kbVideoMode && kbVideoResult ? (
+                    <video ref={kbVideoRef} src={kbVideoResult}
+                      autoPlay loop muted playsInline
+                      style={{ width: "100%", display: "block", objectFit: "cover" }} />
+                  ) : (
+                    <img src={kbBgSrc} alt="keyboard" style={{
+                      width: "100%", display: "block",
+                      filter: kbAnim === "glow" ? "brightness(1.1) saturate(1.1)" : undefined,
+                    }} />
+                  )}
+                  {kbVideoMode && (
+                    <div style={{
+                      position: "absolute", top: 4, right: 4,
+                      background: kbApiLoading ? "rgba(245,158,11,0.9)" : kbVideoResult ? "rgba(16,185,129,0.9)" : "rgba(139,92,246,0.85)",
+                      borderRadius: 5, padding: "2px 6px",
+                      fontSize: 8, color: "#fff", fontWeight: 800, backdropFilter: "blur(4px)",
+                    }}>
+                      {kbApiLoading ? "⏳ 生成中" : kbVideoResult ? "▶ LIVE" : "API 待接入"}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+        </Card>
+      </div>
+
+      {/* ── 右：配置区 ── */}
+      <div className="w-[340px] flex flex-col gap-4">
+
+        {/* 对话配置 */}
+        <SectionBox title="对话内容" color={color}>
+          <div className="flex flex-col gap-2">
+            {messages.map((msg, i) => (
+              <div key={msg.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", borderRadius: 8, background: "rgba(139,92,246,0.06)", border: "1px solid rgba(139,92,246,0.12)" }}>
+                <span style={{ fontSize: 10, color: msg.from === "me" ? "#EC4899" : "#8B5CF6", fontWeight: 700, minWidth: 28 }}>{msg.from === "me" ? "我" : "对方"}</span>
+                <span style={{ fontSize: 11, color: "#374151", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", ...FONT_STYLES[msg.font] }}>{msg.text}</span>
+                <button onClick={() => removeMessage(msg.id)} style={{ border: "none", background: "none", cursor: "pointer", color: "#9CA3AF", padding: 2 }}>✕</button>
+              </div>
+            ))}
+          </div>
+
+          {/* Add message */}
+          <div style={{ display: "flex", gap: 5, marginTop: 6 }}>
+            <div style={{ display: "flex", background: "#F3F4F6", borderRadius: 8, padding: 2, gap: 2 }}>
+              {(["me", "them"] as const).map(s => (
+                <button key={s} onClick={() => setNewSender(s)} style={{ padding: "4px 8px", borderRadius: 6, border: "none", background: newSender === s ? "#8B5CF6" : "transparent", color: newSender === s ? "#fff" : "#6B7280", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>
+                  {s === "me" ? "我" : "对方"}
+                </button>
+              ))}
+            </div>
+            <select value={newFont} onChange={e => setNewFont(e.target.value as any)} style={{ fontSize: 11, borderRadius: 7, border: "1px solid #E5E7EB", padding: "2px 6px", background: "#FAFAFA", color: "#374151" }}>
+              <option value="normal">正常</option>
+              <option value="script">手写体</option>
+              <option value="bold">粗体</option>
+            </select>
+          </div>
+          <div style={{ display: "flex", gap: 5, marginTop: 4 }}>
+            <input value={newMsg} onChange={e => setNewMsg(e.target.value)} onKeyDown={e => e.key === "Enter" && addMessage()}
+              placeholder="输入消息内容…"
+              style={{ flex: 1, fontSize: 12, padding: "7px 10px", borderRadius: 8, border: "1.5px solid #E5E7EB", outline: "none", fontFamily: "inherit" }} />
+            <button onClick={addMessage} style={{ padding: "7px 14px", borderRadius: 8, border: "none", background: "linear-gradient(135deg,#8B5CF6,#EC4899)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ 添加</button>
+          </div>
+        </SectionBox>
+
+        {/* 键盘配置 */}
+        <SectionBox title="键盘设置" color={color}>
+          {/* 键盘背景 */}
+          <div>
+            <FieldLabel>键盘背景图</FieldLabel>
+            <div onClick={() => kbBgInputRef.current?.click()} style={{
+              borderRadius: 10, border: "1.5px dashed rgba(139,92,246,0.3)",
+              background: kbBg ? "transparent" : "rgba(139,92,246,0.04)",
+              overflow: "hidden", position: "relative", minHeight: 70,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", transition: "all 0.2s",
+            }}
+              onMouseEnter={e => (e.currentTarget.style.borderColor = "#8B5CF6")}
+              onMouseLeave={e => (e.currentTarget.style.borderColor = "rgba(139,92,246,0.3)")}
+            >
+              {kbBg ? (
+                <>
+                  <img src={kbBg} alt="" style={{ width: "100%", maxHeight: 100, objectFit: "cover", display: "block", borderRadius: 8 }} />
+                  <button onClick={e => { e.stopPropagation(); setKbBg(null); }} style={{ position: "absolute", top: 5, right: 5, width: 22, height: 22, borderRadius: 6, border: "none", background: "rgba(239,68,68,0.8)", color: "#fff", cursor: "pointer", fontSize: 12 }}>✕</button>
+                </>
+              ) : (
+                <div style={{ textAlign: "center", color: "#9CA3AF", padding: 14 }}>
+                  <div style={{ fontSize: 20, marginBottom: 4 }}>🖼️</div>
+                  <div style={{ fontSize: 11, fontWeight: 600 }}>上传键盘背景图</div>
+                  <div style={{ fontSize: 10, color: "#C4CAD4", marginTop: 2 }}>游戏角色 / 动漫人物 / 品牌图</div>
+                </div>
+              )}
+            </div>
+            <input ref={kbBgInputRef} type="file" accept="image/*" style={{ display: "none" }}
+              onChange={e => { const f = e.target.files?.[0]; if (f) setKbBg(URL.createObjectURL(f)); e.target.value = ""; }} />
+          </div>
+
+          {/* 键盘主题 */}
+          <div>
+            <FieldLabel>键盘配色</FieldLabel>
+            <div style={{ display: "flex", gap: 6 }}>
+              {(["dark", "purple", "neon"] as const).map(t => (
+                <button key={t} onClick={() => setKbTheme(t)} style={{
+                  flex: 1, padding: "7px", borderRadius: 8, border: "none",
+                  background: kbTheme === t ? "rgba(139,92,246,0.15)" : "#F3F4F6",
+                  color: kbTheme === t ? "#8B5CF6" : "#6B7280",
+                  fontSize: 11, fontWeight: 700, cursor: "pointer",
+                  outline: kbTheme === t ? "2px solid rgba(139,92,246,0.35)" : "2px solid transparent",
+                }}>
+                  {t === "dark" ? "深黑" : t === "purple" ? "紫色" : "霓虹"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 键盘动效 */}
+          <div>
+            <FieldLabel>AI 键盘动效</FieldLabel>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5 }}>
+              {([["none","无动效"],["pulse","呼吸律动"],["glow","霓虹发光"],["shake","微震动"]] as const).map(([v,l]) => (
+                <button key={v} onClick={() => setKbAnim(v)} style={{
+                  padding: "7px", borderRadius: 8, border: "none",
+                  background: kbAnim === v ? "rgba(139,92,246,0.15)" : "#F3F4F6",
+                  color: kbAnim === v ? "#8B5CF6" : "#6B7280",
+                  fontSize: 11, fontWeight: kbAnim === v ? 700 : 500, cursor: "pointer",
+                  outline: kbAnim === v ? "2px solid rgba(139,92,246,0.35)" : "2px solid transparent",
+                }}>{l}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* 动效速度 */}
+          {kbAnim !== "none" && (
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                <FieldLabel>动效速度</FieldLabel>
+                <span style={{ fontSize: 12, fontWeight: 700, color: color }}>{kbAnimSpeed.toFixed(1)}×</span>
+              </div>
+              <input type="range" min={0.3} max={3} step={0.1} value={kbAnimSpeed} onChange={e => setKbAnimSpeed(Number(e.target.value))}
+                style={{ width: "100%", accentColor: color }} />
+            </div>
+          )}
+        </SectionBox>
+
+        {/* ── 键盘动画 API 入口 ── */}
+        <SectionBox title="键盘动画 API" color={color}>
+
+          {/* 开关 */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#111" }}>启用键盘动画</div>
+              <div style={{ fontSize: 10, color: "#9CA3AF", marginTop: 2 }}>AI 将键盘静态图生成为动态视频</div>
+            </div>
+            <button onClick={() => { setKbVideoMode(v => !v); setKbApiError(""); }} style={{
+              width: 42, height: 24, borderRadius: 12, border: "none", cursor: "pointer",
+              background: kbVideoMode ? "linear-gradient(135deg,#8B5CF6,#7C3AED)" : "#E5E7EB",
+              position: "relative", transition: "background 0.2s", flexShrink: 0,
+            }}>
+              <div style={{
+                position: "absolute", top: 2, left: kbVideoMode ? 20 : 2,
+                width: 20, height: 20, borderRadius: "50%", background: "#fff",
+                boxShadow: "0 1px 4px rgba(0,0,0,0.2)", transition: "left 0.2s",
+              }} />
+            </button>
+          </div>
+
+          {kbVideoMode && (
+            <>
+              {/* API 端点 */}
+              <div>
+                <FieldLabel>API 端点地址</FieldLabel>
+                <input value={kbApiUrl} onChange={e => setKbApiUrl(e.target.value)}
+                  placeholder="https://api.your-service.com/v1/animate"
+                  style={{
+                    width: "100%", padding: "8px 10px", borderRadius: 9,
+                    border: "1.5px solid #E5E7EB", fontSize: 11, color: "#111",
+                    outline: "none", fontFamily: "monospace", boxSizing: "border-box", background: "#FAFAFA",
+                  }}
+                  onFocus={e => (e.target.style.borderColor = "#8B5CF6")}
+                  onBlur={e => (e.target.style.borderColor = "#E5E7EB")}
+                />
+              </div>
+
+              {/* API Key */}
+              <div>
+                <FieldLabel>API Key</FieldLabel>
+                <input value={kbApiKey} onChange={e => setKbApiKey(e.target.value)}
+                  type="password" placeholder="sk-••••••••••••••••"
+                  style={{
+                    width: "100%", padding: "8px 10px", borderRadius: 9,
+                    border: "1.5px solid #E5E7EB", fontSize: 11, color: "#111",
+                    outline: "none", fontFamily: "monospace", boxSizing: "border-box", background: "#FAFAFA",
+                  }}
+                  onFocus={e => (e.target.style.borderColor = "#8B5CF6")}
+                  onBlur={e => (e.target.style.borderColor = "#E5E7EB")}
+                />
+              </div>
+
+              {/* 错误提示 */}
+              {kbApiError && (
+                <div style={{ fontSize: 11, color: "#EF4444", background: "rgba(239,68,68,0.08)", padding: "7px 10px", borderRadius: 8, border: "1px solid rgba(239,68,68,0.2)" }}>
+                  ⚠️ {kbApiError}
+                </div>
+              )}
+
+              {/* 生成按钮 */}
+              <button
+                disabled={kbApiLoading || !kbApiUrl || !kbApiKey}
+                onClick={async () => {
+                  // ── TODO: 接入实际 AI 视频 API ────────────────────────
+                  // 当前为预留入口，接入时替换此处逻辑：
+                  //
+                  // const res = await fetch(kbApiUrl, {
+                  //   method: "POST",
+                  //   headers: { "Authorization": `Bearer ${kbApiKey}`, "Content-Type": "application/json" },
+                  //   body: JSON.stringify({ image_url: kbBgSrc, duration: 4, ... })
+                  // });
+                  // const data = await res.json();
+                  // setKbVideoResult(data.video_url);
+                  //
+                  // ────────────────────────────────────────────────────────
+                  setKbApiLoading(true);
+                  setKbApiError("");
+                  try {
+                    // 模拟延迟（真实接入时删除此行）
+                    await new Promise(r => setTimeout(r, 2000));
+                    // 占位：实际应替换为 API 返回的视频 URL
+                    setKbApiError("API 尚未接入，请在代码中替换 TODO 注释处的逻辑");
+                  } catch (e: any) {
+                    setKbApiError(e?.message || "请求失败");
+                  } finally {
+                    setKbApiLoading(false);
+                  }
+                }}
+                style={{
+                  width: "100%", padding: "10px", borderRadius: 10, border: "none",
+                  background: kbApiLoading || !kbApiUrl || !kbApiKey
+                    ? "#E5E7EB"
+                    : "linear-gradient(135deg,#8B5CF6,#7C3AED)",
+                  color: kbApiLoading || !kbApiUrl || !kbApiKey ? "#9CA3AF" : "#fff",
+                  fontSize: 13, fontWeight: 800, cursor: kbApiLoading || !kbApiUrl || !kbApiKey ? "not-allowed" : "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+                  boxShadow: !kbApiLoading && kbApiUrl && kbApiKey ? "0 4px 14px rgba(139,92,246,0.4)" : "none",
+                  transition: "all 0.2s",
+                }}>
+                {kbApiLoading
+                  ? <><RefreshCw size={13} style={{ animation: "spin 0.8s linear infinite" }} />生成中…</>
+                  : kbVideoResult
+                  ? <><Sparkles size={13} />重新生成</>
+                  : <><Sparkles size={13} />生成键盘动画</>}
+              </button>
+
+              {/* 成功状态 */}
+              {kbVideoResult && !kbApiLoading && (
+                <div style={{ fontSize: 11, color: "#10B981", background: "rgba(16,185,129,0.08)", padding: "7px 10px", borderRadius: 8, border: "1px solid rgba(16,185,129,0.2)", fontWeight: 600 }}>
+                  ▶ 动画已生成，键盘区域正在播放
+                </div>
+              )}
+
+              <div style={{ fontSize: 10, color: "#9CA3AF", lineHeight: 1.6 }}>
+                💡 支持 Runway / Kling / MiniMax 等 AI 视频生成 API，接入后点击「生成键盘动画」即可让键盘角色动起来
+              </div>
+            </>
+          )}
+        </SectionBox>
+
+        {/* 聊天界面设置 */}
+        <SectionBox title="界面设置" color={color}>
+
+          {/* 头像（左右分开） */}
+          <div>
+            <FieldLabel>头像设置</FieldLabel>
+            <div style={{ display: "flex", gap: 12 }}>
+              {/* 对方头像（左） */}
+              <div style={{ flex: 1, textAlign: "center" }}>
+                <div style={{ fontSize: 10, color: "#9CA3AF", marginBottom: 5 }}>对方（左侧）</div>
+                <div onClick={() => avatarInputRef.current?.click()} style={{
+                  width: 48, height: 48, borderRadius: "50%", overflow: "hidden",
+                  background: "#F3F4F6", cursor: "pointer",
+                  border: "2px dashed #E5E7EB", margin: "0 auto",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  {theirAvatar ? <img src={theirAvatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: 22 }}>🦊</span>}
+                </div>
+                <input ref={avatarInputRef} type="file" accept="image/*" style={{ display: "none" }}
+                  onChange={e => { const f = e.target.files?.[0]; if (f) setTheirAvatar(URL.createObjectURL(f)); e.target.value = ""; }} />
+              </div>
+
+              {/* 我的头像（右） */}
+              <div style={{ flex: 1, textAlign: "center" }}>
+                <div style={{ fontSize: 10, color: "#9CA3AF", marginBottom: 5 }}>我（右侧）</div>
+                <div onClick={() => myAvatarInputRef.current?.click()} style={{
+                  width: 48, height: 48, borderRadius: "50%", overflow: "hidden",
+                  background: "#F3F4F6", cursor: "pointer",
+                  border: "2px dashed #E5E7EB", margin: "0 auto",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  {myAvatar ? <img src={myAvatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: 22 }}>🐱</span>}
+                </div>
+                <input ref={myAvatarInputRef} type="file" accept="image/*" style={{ display: "none" }}
+                  onChange={e => { const f = e.target.files?.[0]; if (f) setMyAvatar(URL.createObjectURL(f)); e.target.value = ""; }} />
+              </div>
+            </div>
+          </div>
+
+          {/* 气泡颜色 */}
+          <div>
+            <FieldLabel>聊天框背景色</FieldLabel>
+            <div style={{ display: "flex", gap: 10 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 10, color: "#9CA3AF", marginBottom: 4 }}>我的气泡</div>
+                <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                  {[
+                    { label: "蓝",  val: "rgba(20,40,180,0.85)" },
+                    { label: "紫",  val: "rgba(100,20,180,0.85)" },
+                    { label: "红",  val: "rgba(180,20,20,0.85)" },
+                    { label: "绿",  val: "rgba(20,130,80,0.85)" },
+                    { label: "黑",  val: "rgba(20,20,20,0.85)" },
+                  ].map(c => (
+                    <button key={c.val} onClick={() => setMyBubbleBg(c.val)} style={{
+                      width: 28, height: 28, borderRadius: 6, border: "none",
+                      background: c.val, cursor: "pointer",
+                      outline: myBubbleBg === c.val ? "2.5px solid #8B5CF6" : "2.5px solid transparent",
+                      boxShadow: myBubbleBg === c.val ? "0 0 0 1px white" : "none",
+                    }} title={c.label} />
+                  ))}
+                  <input type="color" value="#1428b4"
+                    onChange={e => setMyBubbleBg(e.target.value)}
+                    style={{ width: 28, height: 28, borderRadius: 6, border: "none", cursor: "pointer", padding: 0 }}
+                    title="自定义" />
+                </div>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 10, color: "#9CA3AF", marginBottom: 4 }}>对方气泡</div>
+                <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                  {[
+                    { label: "白",  val: "rgba(255,255,255,0.92)" },
+                    { label: "灰",  val: "rgba(80,80,80,0.85)" },
+                    { label: "深灰",val: "rgba(40,40,40,0.85)" },
+                    { label: "米",  val: "rgba(240,220,180,0.92)" },
+                  ].map(c => (
+                    <button key={c.val} onClick={() => setTheirBubbleBg(c.val)} style={{
+                      width: 28, height: 28, borderRadius: 6, border: "1px solid #E5E7EB",
+                      background: c.val, cursor: "pointer",
+                      outline: theirBubbleBg === c.val ? "2.5px solid #8B5CF6" : "2.5px solid transparent",
+                      boxShadow: theirBubbleBg === c.val ? "0 0 0 1px white" : "none",
+                    }} title={c.label} />
+                  ))}
+                  <input type="color" value="#ffffff"
+                    onChange={e => setTheirBubbleBg(e.target.value)}
+                    style={{ width: 28, height: 28, borderRadius: 6, border: "none", cursor: "pointer", padding: 0 }}
+                    title="自定义" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </SectionBox>
+
+        {/* 导出 */}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={handleExport} disabled={exporting} style={{
+            flex: 1, padding: "11px", borderRadius: 10, border: "none",
+            background: exporting ? "#E5E7EB" : exportDone ? "#10B981" : "linear-gradient(135deg,#8B5CF6,#EC4899)",
+            color: exporting ? "#9CA3AF" : "#fff", fontSize: 13, fontWeight: 800,
+            cursor: exporting ? "not-allowed" : "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+            boxShadow: exporting || exportDone ? "none" : "0 4px 14px rgba(139,92,246,0.4)",
+            transition: "all 0.2s",
+          }}>
+            {exporting
+              ? <><RefreshCw size={13} style={{ animation: "spin 0.8s linear infinite" }} />录制中… (4s)</>
+              : exportDone
+              ? "✓ 已下载 .webm"
+              : "🎬 导出视频 (4s)"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── 字幕相关常量（F01 / F02 共用）────────────────────────────────────────────
 
 const SUB_LANG_OPTIONS = [
@@ -3500,7 +4313,7 @@ export default function App() {
 
   const panels: Record<FeatureId, React.ReactNode> = {
     F01: <F01 />, F02: <F02 />, F03: <F03 />, F04: <F04 />,
-    F05: <F05 />, F06: <F06 />,
+    F05: <F05 />, F06: <F06 />, F07: <F07 />,
   };
 
   return (

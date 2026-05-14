@@ -13,6 +13,36 @@ const os = require("os");
 const https = require("https");
 const http = require("http");
 const { execSync } = require("child_process");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+
+// ─── Auth 配置 ────────────────────────────────────────────────────────────────
+const JWT_SECRET = process.env.JWT_SECRET || "ai-studio-secret-2025";
+const USERS_FILE = path.join(__dirname, "users.json");
+
+function readUsers() {
+  try {
+    if (fs.existsSync(USERS_FILE)) {
+      return JSON.parse(fs.readFileSync(USERS_FILE, "utf8"));
+    }
+  } catch {}
+  return [];
+}
+
+function writeUsers(users) {
+  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), "utf8");
+}
+
+function authMiddleware(req, res, next) {
+  const token = req.headers["authorization"]?.replace("Bearer ", "");
+  if (!token) return res.status(401).json({ error: "未登录" });
+  try {
+    req.user = jwt.verify(token, JWT_SECRET);
+    next();
+  } catch {
+    res.status(401).json({ error: "Token 已过期，请重新登录" });
+  }
+}
 
 // Linux 环境下给 ffmpeg/ffprobe 加执行权限
 try {
@@ -43,6 +73,62 @@ console.log("OUTPUT_DIR:", OUTPUT_DIR);
 app.use(cors({ origin: "*" }));
 app.use(express.json());
 app.use("/outputs", express.static(OUTPUT_DIR));
+
+// ─── Auth 路由 ────────────────────────────────────────────────────────────────
+
+// 注册
+app.post("/api/auth/register", async (req, res) => {
+  const { username, password, invite } = req.body || {};
+  if (!username || !password) return res.status(400).json({ error: "用户名和密码不能为空" });
+  if (username.length < 2 || username.length > 20) return res.status(400).json({ error: "用户名长度 2-20 位" });
+  if (password.length < 6) return res.status(400).json({ error: "密码至少 6 位" });
+
+  // 邀请码校验（可选，设置 INVITE_CODE 环境变量启用）
+  const INVITE_CODE = process.env.INVITE_CODE;
+  if (INVITE_CODE && invite !== INVITE_CODE) {
+    return res.status(403).json({ error: "邀请码错误" });
+  }
+
+  const users = readUsers();
+  if (users.find(u => u.username.toLowerCase() === username.toLowerCase())) {
+    return res.status(409).json({ error: "用户名已存在" });
+  }
+
+  const hash = await bcrypt.hash(password, 10);
+  const user = { id: uuidv4(), username, password: hash, createdAt: new Date().toISOString() };
+  users.push(user);
+  writeUsers(users);
+
+  const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: "30d" });
+  res.json({ token, username: user.username });
+});
+
+// 登录
+app.post("/api/auth/login", async (req, res) => {
+  const { username, password } = req.body || {};
+  if (!username || !password) return res.status(400).json({ error: "用户名和密码不能为空" });
+
+  const users = readUsers();
+  const user = users.find(u => u.username.toLowerCase() === username.toLowerCase());
+  if (!user) return res.status(401).json({ error: "用户名或密码错误" });
+
+  const ok = await bcrypt.compare(password, user.password);
+  if (!ok) return res.status(401).json({ error: "用户名或密码错误" });
+
+  const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: "30d" });
+  res.json({ token, username: user.username });
+});
+
+// 验证 Token
+app.get("/api/auth/verify", authMiddleware, (req, res) => {
+  res.json({ username: req.user.username });
+});
+
+// 用户列表（仅开发用）
+app.get("/api/auth/users", (req, res) => {
+  const users = readUsers().map(u => ({ id: u.id, username: u.username, createdAt: u.createdAt }));
+  res.json(users);
+});
 
 const storage = multer.diskStorage({
   destination: UPLOAD_DIR,
@@ -355,7 +441,9 @@ app.post("/api/f01/reframe",
     const regions = (() => { try { return JSON.parse(regionsRaw || "[]"); } catch { return []; } })();
 
     const dims = { "9:16": [1080, 1920], "1:1": [1080, 1080], "4:5": [1080, 1350], "16:9": [1920, 1080] };
-    const [w, h] = dims[ratio] || dims["9:16"];
+    const customW = req.body.customW ? parseInt(req.body.customW, 10) : null;
+    const customH = req.body.customH ? parseInt(req.body.customH, 10) : null;
+    const [w, h] = (ratio === "custom" && customW && customH) ? [customW, customH] : (dims[ratio] || dims["9:16"]);
     const id = uuidv4();
     const normPath    = path.join(UPLOAD_DIR, `${id}_norm.mp4`);
     const maskedPath  = path.join(UPLOAD_DIR, `${id}_masked.mp4`);

@@ -6,6 +6,7 @@ import { analyzeImageWithAI } from '../utils/aiAnalyze';
 import { AIAssistant } from './AIAssistant';
 import BatchImageFiller from './BatchImageFiller';
 import BatchIconGenerator from './BatchIconGenerator';
+import BatchBgGenerator from './BatchBgGenerator';
 
 interface Props {
   modules: ModuleData[];
@@ -44,7 +45,49 @@ const ICON_ANIM_PRESETS: Array<[ModuleData['iconAnimationType'], string]> = [
   ['swing', '🔔'],
 ];
 
-type Section = 'color' | 'style' | 'ai-fill' | 'upload' | 'ai-icon' | 'ai-theme';
+type Section = 'color' | 'style' | 'ai-fill' | 'upload' | 'ai-gen' | 'ai-theme';
+
+// ─── 合并面板：背景图 + 图标 两个 Tab ─────────────────────────────────────────
+function BatchAIGenPanel({
+  modules, onSetModuleBackground, onSetModuleIcon,
+}: {
+  modules: ModuleData[];
+  onSetModuleBackground: (id: string, url: string) => void;
+  onSetModuleIcon: (id: string, icon: string) => void;
+}) {
+  const [tab, setTab] = React.useState<'bg' | 'icon'>('bg');
+  return (
+    <div>
+      {/* Tab switcher */}
+      <div style={{
+        display: 'flex', gap: 0,
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
+      }}>
+        {([
+          { key: 'bg',   label: '🎨 背景图', desc: '参考图 + 描述词，生成模块背景' },
+          { key: 'icon', label: '✨ 图标',    desc: '逐模块描述，批量生成图标' },
+        ] as const).map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)} title={t.desc} style={{
+            flex: 1, padding: '9px 6px', border: 'none',
+            background: 'transparent',
+            color: tab === t.key ? '#a78bfa' : '#5a5a8a',
+            fontSize: 12, fontWeight: 700, cursor: 'pointer',
+            borderBottom: `2px solid ${tab === t.key ? '#8b5cf6' : 'transparent'}`,
+            transition: 'all 0.15s',
+          }}>{t.label}</button>
+        ))}
+      </div>
+
+      {/* Content */}
+      <div style={{ padding: '12px 14px' }}>
+        {tab === 'bg'
+          ? <BatchBgGenerator modules={modules} onSetModuleBackground={onSetModuleBackground} />
+          : <BatchIconGenerator modules={modules} onSetModuleIcon={onSetModuleIcon} />
+        }
+      </div>
+    </div>
+  );
+}
 
 export default function BatchPanel({
   modules, selectedModuleIds, onSelectAll, onDeselectAll,
@@ -197,79 +240,8 @@ export default function BatchPanel({
         </div>
       )}
 
-      {/* ② 批量动画 */}
-      <SectionHeader id="style" emoji="✨" title="批量动画" count={`${targetCount}个`} />
-      {openSection === 'style' && (
-        <div style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', marginBottom: 7 }}>模块动画</div>
-          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 10 }}>
-            {ANIM_PRESETS.map(([val, label]) => (
-              <button key={val} onClick={() => onBatchModuleUpdate(targetIds, { animationType: val })}
-                style={{ padding: '5px 10px', borderRadius: 7, border: '1px solid rgba(102,126,234,0.25)', background: 'rgba(102,126,234,0.08)', color: '#a5b4fc', fontSize: 11, cursor: 'pointer', fontWeight: 600 }}>
-                {label}
-              </button>
-            ))}
-          </div>
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', marginBottom: 7 }}>图标动画</div>
-          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-            {ICON_ANIM_PRESETS.map(([val, label]) => (
-              <button key={val} onClick={() => onBatchModuleUpdate(targetIds, { iconAnimationType: val })}
-                style={{ padding: '5px 10px', borderRadius: 7, border: '1px solid rgba(245,158,11,0.25)', background: 'rgba(245,158,11,0.06)', color: '#fcd34d', fontSize: 11, cursor: 'pointer', fontWeight: 600 }}>
-                {label}
-              </button>
-            ))}
-          </div>
-          <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
-            <button onClick={() => onBatchModuleUpdate(targetIds, { animationType: undefined, iconAnimationType: undefined })}
-              style={{ flex: 1, padding: '7px', borderRadius: 7, border: '1px solid rgba(239,68,68,0.25)', background: 'rgba(239,68,68,0.06)', color: '#f87171', fontSize: 11, cursor: 'pointer', fontWeight: 600 }}>
-              🗑 清除所有动画
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ③ AI风格批量填充 */}
-      <SectionHeader id="ai-fill" emoji="🎭" title="AI 风格识别填充" count="" />
-      {openSection === 'ai-fill' && (
-        <div style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', marginBottom: 8, lineHeight: 1.6 }}>
-            上传参考图 → AI识别风格 → 批量生成背景填入模块
-          </div>
-          <input ref={styleRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleStyleUpload} />
-          <button onClick={() => styleRef.current?.click()} disabled={isAnalyzing || isFilling}
-            style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1.5px dashed rgba(168,85,247,0.4)', background: 'rgba(168,85,247,0.06)', color: '#c4b5fd', cursor: 'pointer', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-            {styleRefImage ? <img src={styleRefImage} style={{ width: 24, height: 24, objectFit: 'cover', borderRadius: 4 }} /> : <Upload size={13} />}
-            {isAnalyzing ? 'AI分析中…' : styleRefImage ? '重新上传' : '上传参考图'}
-          </button>
-          {detectedStyle && (
-            <textarea value={detectedStyle} onChange={e => setDetectedStyle(e.target.value)} rows={2} disabled={isFilling}
-              style={{ width: '100%', marginTop: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(168,85,247,0.2)', borderRadius: 7, color: '#e9d5ff', fontSize: 11, padding: '6px 8px', resize: 'none', outline: 'none', fontFamily: 'inherit', lineHeight: 1.5, boxSizing: 'border-box' }} />
-          )}
-          {isFilling && (
-            <div style={{ marginTop: 8 }}>
-              <div style={{ height: 3, background: 'rgba(168,85,247,0.15)', borderRadius: 3, overflow: 'hidden', marginBottom: 4 }}>
-                <div style={{ height: '100%', width: `${fillProgress.total ? Math.round(fillProgress.done / fillProgress.total * 100) : 0}%`, background: 'linear-gradient(90deg,#667eea,#a855f7)', borderRadius: 3, transition: 'width 0.4s' }} />
-              </div>
-              <div style={{ fontSize: 10, color: '#a78bfa' }}>{fillProgress.status}</div>
-            </div>
-          )}
-          {detectedStyle && !isFilling && (
-            <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-              <button onClick={() => handleBatchFill(false)} disabled={selectedModuleIds.length === 0}
-                style={{ flex: 1, padding: '9px', borderRadius: 8, background: selectedModuleIds.length === 0 ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg,#667eea,#a855f7)', border: 'none', color: selectedModuleIds.length === 0 ? 'rgba(255,255,255,0.3)' : '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
-                <Layers size={11} />填充已选 {selectedModuleIds.length}
-              </button>
-              <button onClick={() => handleBatchFill(true)}
-                style={{ flex: 1, padding: '9px', borderRadius: 8, background: 'linear-gradient(135deg,#e85d04,#a855f7)', border: 'none', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
-                <Layers size={11} />填充全部 {modules.length}
-              </button>
-            </div>
-          )}
-          {fillProgress.status === '✅ 完成' && !isFilling && (
-            <div style={{ marginTop: 6, fontSize: 11, color: '#34d399', textAlign: 'center' }}>✅ 背景已填充完成</div>
-          )}
-        </div>
-      )}
+      {/* ② 批量动画 — 暂时隐藏 */}
+      {/* ③ AI风格批量填充 — 暂时隐藏 */}
 
       {/* ④ 批量上传图片 */}
       <SectionHeader id="upload" emoji="📂" title="批量上传图片" count="" />
@@ -279,13 +251,7 @@ export default function BatchPanel({
         </div>
       )}
 
-      {/* ⑤ 批量AI图标 */}
-      <SectionHeader id="ai-icon" emoji="⚡" title="批量 AI 图标生成" count="" />
-      {openSection === 'ai-icon' && (
-        <div style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-          <BatchIconGenerator modules={modules} onSetModuleIcon={onSetModuleIcon} />
-        </div>
-      )}
+      {/* ⑤ 批量 AI 生图 — 暂时隐藏 */}
 
       {/* ⑥ AI主题生成 */}
       <SectionHeader id="ai-theme" emoji="🤖" title="AI 一键主题" count="" />
