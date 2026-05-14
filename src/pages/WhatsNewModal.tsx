@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   X, Zap, Film, Wand2, Layers, Image, Type, Video,
   Scissors, Sparkles, Cpu, Download, Palette, Search,
-  RotateCcw, Check, Paintbrush, SlidersHorizontal, Grid2x2, FlaskConical,
+  RotateCcw, Check, Paintbrush, SlidersHorizontal, Grid2x2, FlaskConical, MessageSquare,
 } from "lucide-react";
 
 const VIDEO_UPDATES = [
@@ -13,7 +13,7 @@ const VIDEO_UPDATES = [
   { icon: Scissors,  color: "#10B981", title: "长视频精华提取",    desc: "AI 关键词标注定位精彩片段，一次提取多段短视频，支持同时输出精华合集" },
   { icon: Type,      color: "#06B6D4", title: "Whisper 自动字幕",  desc: "OpenAI Whisper 语音识别，支持中英混语，默认/描边/居中/TikTok 四种字幕样式烧录" },
   { icon: Cpu,       color: "#8B5CF6", title: "竞品 Logo 智能遮挡", desc: "在视频预览上框选区域，一键应用马赛克、模糊、纯色三种遮挡类型，批量全部应用" },
-  { icon: Sparkles,  color: "#F97316", title: "数据产出大屏",      desc: "统计每位优化师产出视频数，实时操作记录、14 天柱状图、模块分布热力图，炫酷暗黑风格" },
+  { icon: MessageSquare, color: "#8B5CF6", title: "键盘对话动效",  desc: "自定义聊天框 + AI 键盘主题包适配，支持视频 API 接入让键盘角色动起来，一键导出视频素材" },
 ];
 
 const IMAGE_UPDATES = [
@@ -188,7 +188,7 @@ export default function WhatsNewModal({ onClose }: Props) {
                 }}>平台重磅升级，三大工作区全新上线</h2>
 
                 <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", margin: 0, lineHeight: 1.6 }}>
-                  视频剪辑 + 控制中心定制 + AI 图像风格化，三大工作区合并统一平台，共 24 项核心功能
+                  视频剪辑 + 控制中心定制 + AI 图像风格化，三大工作区合并统一平台，共 23 项核心功能
                 </p>
               </div>
 

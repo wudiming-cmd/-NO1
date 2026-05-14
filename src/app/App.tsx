@@ -4355,13 +4355,13 @@ export default function App() {
               style={{ color: "#12152A" }}
             />
           </div>
-          {/* 大屏按钮 */}
-          <button onClick={() => setShowStats(true)}
+          {/* 大屏按钮 — 暂时隐藏 */}
+          {false && <button onClick={() => setShowStats(true)}
             className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-[12px] font-semibold transition-all"
             style={{ background: "linear-gradient(135deg,#667EEA20,#764BA220)", color: "#667EEA",
               border: "1.5px solid #667EEA30" }}>
             <BarChart2 size={13} />数据大屏
-          </button>
+          </button>}
           <div className="flex items-center gap-1.5">
             <div className="w-2 h-2 rounded-full" style={{ background: "#22C55E" }} />
             <span className="text-[12px] text-muted-foreground">Beta</span>
@@ -4438,8 +4438,8 @@ export default function App() {
         </main>
       </div>
 
-      {/* 数据大屏 Overlay */}
-      {showStats && <StatsPage onClose={() => setShowStats(false)} />}
+      {/* 数据大屏 Overlay — 暂时隐藏 */}
+      {false && showStats && <StatsPage onClose={() => setShowStats(false)} />}
 
       <style>{`
         *::-webkit-scrollbar { display: none; }
