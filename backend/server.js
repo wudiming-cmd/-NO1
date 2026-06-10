@@ -1400,6 +1400,201 @@ app.post("/api/f07/subtitle", upload.single("video"), async (req, res) => {
   }
 });
 
+// ─── F08: 图片混剪（批量图片 → 多条混剪视频）─────────────────────────────────
+
+// FFmpeg xfade 转场映射
+const XFADE_MAP = {
+  fade:      "fade",
+  flash:     "fadewhite",
+  glitch:    "pixelize",
+  zoom:      "distance",
+  rotate:    "radial",
+  flip:      "horzopen",
+  blur:      "smoothleft",
+  chromatic: "dissolve",
+  slide:     "slideleft",
+  wipe:      "wipeleft",
+  ripple:    "circleopen",
+};
+const XFADE_EFFECTS = Object.values(XFADE_MAP);
+
+function shuffleArr(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/**
+ * 构造 filter_complex 字符串
+ * 每张图片在输出中的"净显示时长" = D，转场时长 = T
+ * offset_i = i * (D - T)，总时长 = N*D - (N-1)*T
+ */
+function buildSlideshowFilter(n, W, H, xfade, D, T) {
+  const parts = [];
+  // 1. 缩放 + 填充黑边，统一分辨率
+  for (let i = 0; i < n; i++) {
+    parts.push(
+      `[${i}:v]scale=${W}:${H}:force_original_aspect_ratio=decrease,` +
+      `pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:black,` +
+      `setsar=1,fps=25[v${i}]`
+    );
+  }
+  // 2. xfade 链
+  if (n === 1) {
+    parts.push(`[v0]copy[vout]`);
+  } else {
+    for (let i = 1; i < n; i++) {
+      const inp = i === 1 ? "v0" : `x${i - 1}`;
+      const out = i === n - 1 ? "vout" : `x${i}`;
+      const offset = (i * (D - T)).toFixed(3);
+      parts.push(
+        `[${inp}][v${i}]xfade=transition=${xfade}:duration=${T.toFixed(3)}:offset=${offset}[${out}]`
+      );
+    }
+  }
+  return parts.join(";");
+}
+
+app.post("/api/f08/slideshow", upload.any(), async (req, res) => {
+  const s = sse(res);
+  const allFiles = req.files || [];
+  const imgFiles = allFiles.filter(f => f.fieldname === "images");
+  const bgmFiles = allFiles.filter(f => f.fieldname.startsWith("bgm_")).map(f => f.path);
+  const allPaths = allFiles.map(f => f.path); // 统一清理
+
+  if (imgFiles.length < 2) {
+    allPaths.forEach(p => { try { fs.unlinkSync(p); } catch {} });
+    return s.error("请至少上传 2 张图片");
+  }
+
+  const {
+    videoCount = "3",
+    ratio      = "9:16",
+    secPerImg  = "2",
+    transition = "fade",
+    prefix     = "混剪",
+    bgmRandom  = "true",
+    operator   = "",
+  } = req.body;
+
+  const count    = Math.max(1, Math.min(99, parseInt(videoCount) || 3));
+  const D        = Math.max(0.5, Math.min(10, parseFloat(secPerImg) || 2));
+  const T        = Math.min(0.5, D * 0.25);        // 转场时长（≤0.5s）
+  const useRand  = bgmRandom !== "false";
+
+  const resMap = {
+    "9:16":  [1080, 1920],
+    "1:1":   [1080, 1080],
+    "4:5":   [1080, 1350],
+    "16:9":  [1920, 1080],
+  };
+  const [W, H] = resMap[ratio] || [1080, 1920];
+
+  const safePrefix = (prefix || "混剪").replace(/[^\w一-龥_-]/g, "").slice(0, 20) || "混剪";
+  const outputUrls  = [];
+  const outputNames = [];
+  const outputFiles = []; // 生成的 mp4，30 分钟后清理
+
+  try {
+    for (let vi = 0; vi < count; vi++) {
+      s.progress(Math.round(3 + (vi / count) * 90), `生成第 ${vi + 1} / ${count} 条…`);
+
+      // 每条视频打乱顺序（第 1 条保持原序）
+      const imgs  = vi === 0 ? imgFiles : shuffleArr(imgFiles);
+      const n     = imgs.length;
+
+      // 选转场
+      let xfade = XFADE_MAP[transition] || "fade";
+      if (transition === "random") {
+        xfade = XFADE_EFFECTS[Math.floor(Math.random() * XFADE_EFFECTS.length)];
+      }
+
+      // 选 BGM
+      let bgmPath = null;
+      if (bgmFiles.length > 0) {
+        bgmPath = (useRand && bgmFiles.length > 1)
+          ? bgmFiles[Math.floor(Math.random() * bgmFiles.length)]
+          : bgmFiles[0];
+      }
+
+      const totalDur = n * D - (n - 1) * T;
+      const outName  = `${safePrefix}_${String(vi + 1).padStart(2, "0")}_${uuidv4().slice(0, 6)}.mp4`;
+      const outPath  = path.join(OUTPUT_DIR, outName);
+      outputFiles.push(outPath);
+
+      const filterStr = buildSlideshowFilter(n, W, H, xfade, D, T);
+
+      await new Promise((resolve, reject) => {
+        let cmd = ffmpeg();
+
+        // 图片输入（每张循环，时长略大于 D，保证 xfade 有帧可读）
+        imgs.forEach(img => {
+          cmd = cmd
+            .input(img.path)
+            .inputOptions(["-loop 1", `-t ${(D + T + 0.1).toFixed(2)}`]);
+        });
+
+        // BGM 输入（无限循环，之后用 -t 截断）
+        if (bgmPath) {
+          cmd = cmd.input(bgmPath).inputOptions(["-stream_loop -1"]);
+        }
+
+        // 视频滤镜
+        cmd = cmd.outputOptions([`-filter_complex ${filterStr}`, "-map [vout]"]);
+
+        // 音频
+        if (bgmPath) {
+          const audioIdx = n; // bgm 是第 n 个输入（0-indexed）
+          cmd = cmd
+            .outputOptions([
+              `-map ${audioIdx}:a`,
+              `-af volume=0.75,atrim=0:${totalDur.toFixed(3)},asetpts=PTS-STARTPTS`,
+            ])
+            .audioCodec("aac")
+            .audioBitrate("128k");
+        }
+
+        cmd
+          .videoCodec("libx264")
+          .outputOptions([
+            "-preset fast",
+            "-crf 23",
+            `-t ${totalDur.toFixed(3)}`,
+            "-pix_fmt yuv420p",
+            "-movflags +faststart",
+          ])
+          .output(outPath)
+          .on("end", resolve)
+          .on("error", reject)
+          .run();
+      });
+
+      outputUrls.push(`/outputs/${outName}`);
+      outputNames.push(outName);
+    }
+
+    s.progress(98, "完成！准备下载…");
+    logRecord("F08", operator, `${safePrefix}×${count}条`);
+    s.done({ urls: outputUrls, filenames: outputNames });
+
+  } catch (err) {
+    console.error("[F08] error:", err.message);
+    s.error("生成失败：" + err.message);
+  } finally {
+    // 上传文件 30 分钟后清理
+    setTimeout(() => {
+      allPaths.forEach(p => { try { fs.unlinkSync(p); } catch {} });
+    }, 30 * 60 * 1000);
+    // 输出文件 2 小时后清理
+    setTimeout(() => {
+      outputFiles.forEach(p => { try { fs.unlinkSync(p); } catch {} });
+    }, 2 * 60 * 60 * 1000);
+  }
+});
+
 // ─── 文件下载 ─────────────────────────────────────────────────────────────────
 
 app.get("/api/download", (req, res) => {

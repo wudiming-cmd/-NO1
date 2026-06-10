@@ -9,7 +9,7 @@ import {
 
 const API = "https://no1-22o9.onrender.com";
 
-type FeatureId = "F01" | "F02" | "F03" | "F04" | "F05" | "F06" | "F07";
+type FeatureId = "F01" | "F02" | "F03" | "F04" | "F05" | "F06" | "F07" | "F08";
 type ProcessState = "idle" | "processing" | "done" | "error";
 
 // ── 全局操作员（自动附带到所有 API 请求）──────────────────────────────────────
@@ -26,11 +26,12 @@ async function streamSSE(
   body: FormData,
   onProgress: (pct: number, stage: string) => void,
   onDone: (data: Record<string, unknown>) => void,
-  onError: (msg: string) => void
+  onError: (msg: string) => void,
+  signal?: AbortSignal
 ) {
   body.set("operator", getOperator() || "匿名");
   try {
-    const resp = await fetch(url, { method: "POST", body });
+    const resp = await fetch(url, { method: "POST", body, signal });
     if (!resp.ok || !resp.body) throw new Error(`HTTP ${resp.status}`);
     const reader = resp.body.getReader();
     const dec = new TextDecoder();
@@ -52,7 +53,9 @@ async function streamSSE(
       }
     }
   } catch (err) {
-    onError((err as Error).message);
+    const msg = (err as Error).message;
+    if (msg === "signal is aborted without reason" || msg.includes("aborted") || msg.includes("abort")) return; // 用户主动取消，不报错
+    onError(msg);
   }
 }
 
@@ -486,6 +489,15 @@ const MODULES = [
     icon: <MessageSquare size={16} strokeWidth={1.8} />,
     gradient: "linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%)",
     color: "#8B5CF6",
+  },
+  {
+    id: "F08" as FeatureId,
+    label: "图片混剪",
+    sub: "批量图片 → 自动生成视频",
+    priority: "P0",
+    icon: <Image size={16} strokeWidth={1.8} />,
+    gradient: "linear-gradient(135deg, #06B6D4 0%, #3B82F6 100%)",
+    color: "#06B6D4",
   },
 ] as const;
 
@@ -4299,6 +4311,656 @@ function StatsPage({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ─── F08 · 图片混剪 ──────────────────────────────────────────────────────────
+
+const IMG_TRANSITIONS = [
+  { value: "fade",      icon: "✨", label: "淡入淡出",  desc: "经典柔和" },
+  { value: "flash",     icon: "⚡", label: "闪白切换",  desc: "强烈冲击" },
+  { value: "glitch",    icon: "📡", label: "故障抖动",  desc: "赛博朋克" },
+  { value: "zoom",      icon: "🔭", label: "缩放爆破",  desc: "视觉冲击" },
+  { value: "rotate",    icon: "🌀", label: "旋转飞入",  desc: "动感旋转" },
+  { value: "flip",      icon: "🃏", label: "3D 翻转",   desc: "空间感强" },
+  { value: "blur",      icon: "💫", label: "模糊溶解",  desc: "梦幻过渡" },
+  { value: "chromatic", icon: "🌈", label: "色彩偏移",  desc: "潮流风格" },
+  { value: "slide",     icon: "▶", label: "横向滑动",  desc: "流畅连贯" },
+  { value: "wipe",      icon: "✂", label: "擦除切割",  desc: "利落干净" },
+  { value: "ripple",    icon: "🎯", label: "波纹扩散",  desc: "流动感" },
+  { value: "random",    icon: "🎲", label: "随机转场",  desc: "每次不同" },
+];
+
+type ImgItem = { id: string; file: File; url: string };
+const mkImg = (file: File): ImgItem => ({
+  id: Math.random().toString(36).slice(2),
+  file,
+  url: URL.createObjectURL(file),
+});
+
+type F08Result = { url: string; filename: string };
+
+function F08() {
+  const color = "#06B6D4";
+
+  // ── Images ──────────────────────────────────────────────────────────────────
+  const [images, setImages] = useState<ImgItem[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const bgmInputRef = useRef<HTMLInputElement>(null);
+  const [dragOver, setDragOver] = useState(false);
+
+  // ── Settings ────────────────────────────────────────────────────────────────
+  const [videoCount, setVideoCount] = useState(3);
+  const [ratio, setRatio] = useState("9:16");
+  const [secPerImg, setSecPerImg] = useState(2);
+  const [transition, setTransition] = useState("fade");
+  const [prefix, setPrefix] = useState("");
+
+  // ── BGM ─────────────────────────────────────────────────────────────────────
+  type BgmItem = { id: string; file: File };
+  const [bgmFiles, setBgmFiles] = useState<BgmItem[]>([]);
+  const [bgmRandom, setBgmRandom] = useState(true);
+
+  // ── Process ─────────────────────────────────────────────────────────────────
+  const [procState, setProcState] = useState<ProcessState>("idle");
+  const [pct, setPct] = useState(0);
+  const [stageMsg, setStageMsg] = useState("");
+  const [results, setResults] = useState<F08Result[]>([]);
+  const abortRef = useRef<AbortController | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const cancelRun = () => {
+    abortRef.current?.abort();
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    setProcState("idle");
+    setStageMsg("");
+    setPct(0);
+  };
+
+  const addImages = (files: File[]) => {
+    setImages(p => {
+      const remaining = 50 - p.length;
+      if (remaining <= 0) return p;
+      const imgs = files.filter(f => f.type.startsWith("image/")).slice(0, remaining).map(mkImg);
+      return [...p, ...imgs];
+    });
+  };
+
+  const removeImg = (id: string) =>
+    setImages(p => { const item = p.find(i => i.id === id); item && URL.revokeObjectURL(item.url); return p.filter(i => i.id !== id); });
+
+  const moveImg = (idx: number, dir: -1 | 1) => {
+    setImages(p => {
+      const next = [...p];
+      const target = idx + dir;
+      if (target < 0 || target >= next.length) return p;
+      [next[idx], next[target]] = [next[target], next[idx]];
+      return next;
+    });
+  };
+
+  const run = () => {
+    if (images.length < 2) return;
+
+    // 取消上一次（如有）
+    abortRef.current?.abort();
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+
+    setProcState("processing"); setPct(0);
+    setStageMsg("正在连接服务器，首次可能需要 30s…");
+    setResults([]);
+
+    // 60 秒超时
+    timeoutRef.current = setTimeout(() => {
+      ctrl.abort();
+      setProcState("error");
+      setStageMsg("请求超时（60s），服务器无响应。请稍后重试或检查网络。");
+    }, 60_000);
+
+    const clear = () => { if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; } };
+
+    const fd = new FormData();
+    images.forEach(i => fd.append("images", i.file));
+    fd.append("videoCount", String(videoCount));
+    fd.append("ratio", ratio);
+    fd.append("secPerImg", String(secPerImg));
+    fd.append("transition", transition);
+    fd.append("prefix", prefix.trim() || "混剪");
+    fd.append("bgmRandom", String(bgmRandom));
+    bgmFiles.forEach((b, i) => fd.append(`bgm_${i}`, b.file));
+
+    streamSSE(
+      `${API}/api/f08/slideshow`, fd,
+      (p, s) => { clear(); setPct(p); setStageMsg(s || "处理中…"); },
+      (data) => {
+        clear();
+        const urls = (data.urls as string[]) ?? [data.url as string];
+        const names = (data.filenames as string[]) ?? [data.filename as string];
+        setResults(urls.map((u, i) => ({ url: u, filename: names[i] ?? `混剪_${i + 1}.mp4` })));
+        setProcState("done"); setPct(100);
+      },
+      (msg) => {
+        clear();
+        setProcState("error");
+        // 友好化常见错误信息
+        const friendly = msg.includes("404") ? "接口不存在（HTTP 404），后端尚未部署此功能"
+          : msg.includes("500") ? "服务器内部错误（HTTP 500），请稍后重试"
+          : msg.includes("Failed to fetch") ? "无法连接服务器，请检查网络"
+          : msg;
+        setStageMsg(friendly);
+      },
+      ctrl.signal,
+    );
+  };
+
+  const totalSec = images.length * secPerImg;
+  const estMin = Math.ceil(totalSec / 60);
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-5">
+
+        {/* ── 左栏：图片上传 + 预览网格 ── */}
+        <div className="md:col-span-3 flex flex-col gap-4">
+
+          {/* 上传区 */}
+          {images.length === 0 ? (
+            /* 空状态：步骤引导 */
+            <div
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => { e.preventDefault(); setDragOver(false); addImages(Array.from(e.dataTransfer.files)); }}
+              className="rounded-2xl transition-all duration-200"
+              style={{
+                border: `1.5px dashed ${dragOver ? color : "rgba(18,21,42,0.12)"}`,
+                background: dragOver ? color + "06" : "#F8FAFF",
+              }}
+            >
+              <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden"
+                onChange={(e) => addImages(Array.from(e.target.files ?? []))} />
+              {/* 上传按钮 */}
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="cursor-pointer flex flex-col items-center justify-center gap-3 py-8 text-center select-none"
+              >
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                  style={{ background: color + "12", border: `1.5px dashed ${color}50` }}>
+                  <Upload size={24} style={{ color }} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">点击或拖入图片开始</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">支持 JPG / PNG / WebP · 最多 50 张</p>
+                </div>
+              </div>
+              {/* 三步引导 */}
+              <div className="flex border-t" style={{ borderColor: "rgba(18,21,42,0.06)" }}>
+                {[
+                  { step: "1", icon: "🖼", title: "上传图片", desc: "批量选图，支持拖拽" },
+                  { step: "2", icon: "🎛", title: "配置参数", desc: "选数量、比例、BGM" },
+                  { step: "3", icon: "🎬", title: "一键生成", desc: "自动混剪下载视频" },
+                ].map((s, i) => (
+                  <div key={s.step} className="flex-1 flex flex-col items-center gap-1.5 py-4 px-2 text-center"
+                    style={{ borderRight: i < 2 ? "1px solid rgba(18,21,42,0.06)" : "none" }}>
+                    <span className="text-xl">{s.icon}</span>
+                    <p className="text-[11px] font-bold text-foreground">{s.title}</p>
+                    <p className="text-[10px] text-muted-foreground">{s.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            /* 已上传状态：紧凑上传栏 */
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => { e.preventDefault(); setDragOver(false); addImages(Array.from(e.dataTransfer.files)); }}
+              className="cursor-pointer rounded-2xl flex items-center gap-4 px-5 py-4 transition-all duration-200 select-none"
+              style={{
+                border: `1.5px dashed ${dragOver ? color : color + "50"}`,
+                background: dragOver ? color + "08" : color + "04",
+              }}
+            >
+              <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden"
+                onChange={(e) => addImages(Array.from(e.target.files ?? []))} />
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: color + "15" }}>
+                <Upload size={18} style={{ color }} />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold" style={{ color }}>已上传 {images.length} 张图片</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  预计每条视频时长 ~{totalSec}s · 点击继续添加 · 最多 50 张
+                </p>
+              </div>
+              {images.length >= 50 && (
+                <span className="text-[10px] font-bold px-2 py-1 rounded-lg flex-shrink-0"
+                  style={{ background: "#FEF3C7", color: "#D97706", border: "1px solid #FDE68A" }}>
+                  已达上限
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* 图片网格 */}
+          {images.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <FieldLabel>图片顺序（可调整）</FieldLabel>
+                <button
+                  onClick={() => { images.forEach(i => URL.revokeObjectURL(i.url)); setImages([]); }}
+                  className="text-[11px] text-muted-foreground hover:text-red-500 transition-colors mb-2.5"
+                >清空全部</button>
+              </div>
+              <div className="grid grid-cols-4 gap-2 max-h-72 overflow-y-auto pr-1">
+                {images.map((img, idx) => (
+                  <div key={img.id} className="relative group rounded-xl overflow-hidden"
+                    style={{ aspectRatio: "1", border: `1.5px solid rgba(18,21,42,0.08)` }}>
+                    <img src={img.url} alt="" className="w-full h-full object-cover" />
+                    {/* 序号 */}
+                    <div className="absolute top-1 left-1 w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold text-white"
+                      style={{ background: color + "dd" }}>{idx + 1}</div>
+                    {/* 操作覆层 */}
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100">
+                      {idx > 0 && (
+                        <button onClick={() => moveImg(idx, -1)}
+                          className="w-6 h-6 rounded-lg bg-white/90 flex items-center justify-center text-[11px] font-bold text-gray-700">‹</button>
+                      )}
+                      <button onClick={() => removeImg(img.id)}
+                        className="w-6 h-6 rounded-lg bg-red-500 flex items-center justify-center">
+                        <X size={10} className="text-white" />
+                      </button>
+                      {idx < images.length - 1 && (
+                        <button onClick={() => moveImg(idx, 1)}
+                          className="w-6 h-6 rounded-lg bg-white/90 flex items-center justify-center text-[11px] font-bold text-gray-700">›</button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {/* 追加按钮 */}
+                <label className="rounded-xl flex flex-col items-center justify-center gap-1 cursor-pointer transition-all"
+                  style={{ aspectRatio: "1", border: `1.5px dashed rgba(18,21,42,0.12)`, background: "#FAFBFF" }}>
+                  <input type="file" accept="image/*" multiple className="hidden"
+                    onChange={(e) => addImages(Array.from(e.target.files ?? []))} />
+                  <Plus size={16} className="text-muted-foreground" />
+                  <span className="text-[10px] text-muted-foreground">添加</span>
+                </label>
+              </div>
+            </div>
+          )}
+
+          {/* 处理进度 */}
+          {procState === "processing" && (
+            <div className="flex flex-col gap-2">
+              <ProcessBanner pct={pct} stage={stageMsg} color={color} />
+              <button onClick={cancelRun}
+                className="self-end flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all"
+                style={{ background: "rgba(239,68,68,0.08)", color: "#EF4444", border: "1px solid rgba(239,68,68,0.2)" }}>
+                <X size={10} />取消
+              </button>
+            </div>
+          )}
+
+          {/* 错误提示 */}
+          {procState === "error" && (
+            <div className="flex items-start gap-3 px-4 py-3 rounded-xl"
+              style={{ background: "#FEF2F2", border: "1.5px solid #FECACA" }}>
+              <AlertCircle size={15} className="flex-shrink-0 mt-0.5" style={{ color: "#EF4444" }} />
+              <div className="flex-1 min-w-0">
+                <p className="text-[12px] font-semibold text-red-700">生成失败</p>
+                <p className="text-[11px] text-red-500 mt-0.5 break-words">{stageMsg}</p>
+              </div>
+              <button onClick={() => { setProcState("idle"); setStageMsg(""); }}
+                className="flex-shrink-0 w-5 h-5 rounded flex items-center justify-center hover:bg-red-100">
+                <X size={10} style={{ color: "#EF4444" }} />
+              </button>
+            </div>
+          )}
+
+          {/* 结果列表 */}
+          {results.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <FieldLabel>生成结果 · {results.length} 条视频</FieldLabel>
+              {results.map((r, i) => (
+                <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
+                  style={{ background: "#22C55E0D", border: "1.5px solid #22C55E25" }}>
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: "#22C55E18" }}>
+                    <CheckCircle size={14} style={{ color: "#22C55E" }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[12px] font-semibold truncate text-foreground">{r.filename}</p>
+                    <p className="text-[10px] text-muted-foreground">视频 {i + 1} / {results.length}</p>
+                  </div>
+                  <button onClick={() => triggerDownload(r.url, r.filename)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all"
+                    style={{ background: "#22C55E15", color: "#22C55E", border: "1px solid #22C55E30" }}>
+                    <Download size={11} />下载
+                  </button>
+                </div>
+              ))}
+              {results.length > 1 && (
+                <button
+                  onClick={() => results.forEach(r => triggerDownload(r.url, r.filename))}
+                  className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all"
+                  style={{ background: color + "12", color, border: `1.5px solid ${color}30` }}>
+                  <Download size={13} />一键下载全部 {results.length} 条
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ── 右栏：参数设置 ── */}
+        <div className="md:col-span-2 flex flex-col gap-3">
+
+          {/* 视频数量 */}
+          <SectionBox title="生成设置" color={color}>
+            <div>
+              <FieldLabel>生成视频数量</FieldLabel>
+              {/* 数字输入 + 加减按钮 */}
+              <div className="flex items-center gap-2 mb-3">
+                <button
+                  onClick={() => setVideoCount(v => Math.max(1, v - 1))}
+                  className="w-9 h-9 rounded-xl flex items-center justify-center text-lg font-bold flex-shrink-0 transition-all select-none"
+                  style={{ background: color + "12", color, border: `1.5px solid ${color}30` }}
+                >−</button>
+                <div className="relative flex-1">
+                  <input
+                    type="number"
+                    min={1} max={99} step={1}
+                    value={videoCount}
+                    onChange={(e) => {
+                      const v = parseInt(e.target.value, 10);
+                      if (!isNaN(v)) setVideoCount(Math.max(1, Math.min(99, v)));
+                    }}
+                    className="w-full text-center text-2xl font-bold rounded-xl px-3 py-2 focus:outline-none transition-all"
+                    style={{
+                      color,
+                      background: color + "0D",
+                      border: `2px solid ${color}40`,
+                      fontFamily: "'Plus Jakarta Sans', sans-serif",
+                      MozAppearance: "textfield",
+                    }}
+                    onFocus={e => (e.currentTarget.style.borderColor = color)}
+                    onBlur={e => (e.currentTarget.style.borderColor = color + "40")}
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold pointer-events-none"
+                    style={{ color: color + "99" }}>条</span>
+                </div>
+                <button
+                  onClick={() => setVideoCount(v => Math.min(99, v + 1))}
+                  className="w-9 h-9 rounded-xl flex items-center justify-center text-lg font-bold flex-shrink-0 transition-all select-none"
+                  style={{ background: color + "12", color, border: `1.5px solid ${color}30` }}
+                >+</button>
+              </div>
+              {/* 快捷数量按钮 */}
+              <div className="flex gap-1.5 flex-wrap">
+                {[1, 3, 5, 10, 20, 30].map(n => (
+                  <button key={n} onClick={() => setVideoCount(n)}
+                    className="px-3 py-1 rounded-lg text-[11px] font-bold transition-all"
+                    style={{
+                      background: videoCount === n ? color + "18" : "white",
+                      border: `1.5px solid ${videoCount === n ? color + "50" : "rgba(18,21,42,0.1)"}`,
+                      color: videoCount === n ? color : "#64748b",
+                    }}>{n} 条</button>
+                ))}
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-2">
+                每条视频将使用图片的不同排列组合方式，最多 99 条
+              </p>
+            </div>
+
+            <div>
+              <FieldLabel>输出比例</FieldLabel>
+              <StyledSelect value={ratio} onChange={setRatio} options={[
+                { label: "9:16  竖版（TikTok / Reels）", value: "9:16" },
+                { label: "1:1   方形（Instagram Feed）",  value: "1:1"  },
+                { label: "4:5   纵向（Instagram 广告）",  value: "4:5"  },
+                { label: "16:9  横版（YouTube）",         value: "16:9" },
+              ]} />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2.5">
+                <FieldLabel>每张图片时长</FieldLabel>
+                <span className="text-sm font-bold mb-2.5" style={{ color }}>{secPerImg}s</span>
+              </div>
+              <div className="flex gap-1.5">
+                {[1, 1.5, 2, 3, 4, 5].map(s => (
+                  <button key={s} onClick={() => setSecPerImg(s)}
+                    className="flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all"
+                    style={{
+                      background: secPerImg === s ? color + "18" : "white",
+                      border: `1px solid ${secPerImg === s ? color + "50" : "rgba(18,21,42,0.1)"}`,
+                      color: secPerImg === s ? color : "#64748b",
+                    }}>{s}s</button>
+                ))}
+              </div>
+              {images.length > 0 && (
+                <p className="text-[10px] text-muted-foreground mt-1.5">
+                  {images.length} 张图 × {secPerImg}s = 每条约 {totalSec}s（{estMin} 分钟）
+                </p>
+              )}
+            </div>
+
+            <div>
+              <FieldLabel>转场效果</FieldLabel>
+              <div className="grid grid-cols-3 gap-1.5">
+                {IMG_TRANSITIONS.map(t => {
+                  const on = transition === t.value;
+                  return (
+                    <button key={t.value} onClick={() => setTransition(t.value)}
+                      className="flex flex-col items-center gap-0.5 py-2.5 px-1 rounded-xl transition-all"
+                      style={{
+                        background: on
+                          ? `linear-gradient(135deg,${color}22,${color}0a)`
+                          : "white",
+                        border: `1.5px solid ${on ? color + "60" : "rgba(18,21,42,0.08)"}`,
+                        boxShadow: on ? `0 2px 8px ${color}25` : "none",
+                      }}>
+                      <span className="text-base leading-none">{t.icon}</span>
+                      <span className="text-[10px] font-bold leading-tight"
+                        style={{ color: on ? color : "#12152A" }}>{t.label}</span>
+                      <span className="text-[9px] leading-tight"
+                        style={{ color: on ? color + "aa" : "#8C90AB" }}>{t.desc}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <FieldLabel>文件名前缀（可选）</FieldLabel>
+              <StyledInput value={prefix} onChange={setPrefix} placeholder={'留空则使用「混剪」'} />
+            </div>
+          </SectionBox>
+
+          {/* BGM */}
+          <SectionBox title="背景音乐（BGM）" color={color}>
+            {/* 上传区 */}
+            <label
+              className="flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all"
+              style={{ border: `1.5px dashed ${color}50`, background: color + "06" }}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("audio/"));
+                setBgmFiles(p => [...p, ...files.map(f => ({ id: Math.random().toString(36).slice(2), file: f }))]);
+              }}
+            >
+              <input ref={bgmInputRef} type="file" accept="audio/*" multiple className="hidden"
+                onChange={(e) => {
+                  const files = Array.from(e.target.files ?? []);
+                  setBgmFiles(p => [...p, ...files.map(f => ({ id: Math.random().toString(36).slice(2), file: f }))]);
+                  (e.target as HTMLInputElement).value = "";
+                }} />
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: color + "18" }}>
+                <Upload size={15} style={{ color }} />
+              </div>
+              <div>
+                <p className="text-[13px] font-semibold" style={{ color }}>
+                  {bgmFiles.length > 0 ? `已添加 ${bgmFiles.length} 首，点击继续添加` : "上传 BGM 音乐"}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">支持 MP3 / AAC / WAV · 可多选 · 拖拽上传</p>
+              </div>
+            </label>
+
+            {/* BGM 列表 */}
+            {bgmFiles.length > 0 && (
+              <div className="flex flex-col gap-1.5 max-h-44 overflow-y-auto pr-0.5">
+                {bgmFiles.map((b, idx) => (
+                  <div key={b.id} className="flex items-center gap-2.5 px-3 py-2 rounded-xl"
+                    style={{ background: "white", border: "1.5px solid rgba(18,21,42,0.07)" }}>
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                      style={{ background: color + "15" }}>
+                      <span className="text-sm">🎵</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-semibold truncate text-foreground">{b.file.name}</p>
+                      <p className="text-[9px] text-muted-foreground">
+                        {(b.file.size / 1024 / 1024).toFixed(1)} MB
+                        {bgmRandom && <span className="ml-1.5" style={{ color }}>· 随机分配给视频 {idx + 1}</span>}
+                      </p>
+                    </div>
+                    <button onClick={() => setBgmFiles(p => p.filter(x => x.id !== b.id))}
+                      className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 hover:bg-red-50 transition-colors">
+                      <X size={10} className="text-muted-foreground" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* 随机开关 */}
+            {bgmFiles.length > 1 && (
+              <div className="flex items-center justify-between px-3 py-2.5 rounded-xl"
+                style={{
+                  background: bgmRandom ? "linear-gradient(135deg,#FEF3C710,#FFF7ED20)" : "white",
+                  border: `1.5px solid ${bgmRandom ? "#F59E0B40" : "rgba(18,21,42,0.08)"}`,
+                }}>
+                <div className="flex items-center gap-2">
+                  <span className="text-base">🎲</span>
+                  <div>
+                    <p className="text-[12px] font-semibold" style={{ color: bgmRandom ? "#92400E" : "#12152A" }}>
+                      随机分配 BGM
+                    </p>
+                    <p className="text-[10px]" style={{ color: bgmRandom ? "#B45309" : "#8C90AB" }}>
+                      {bgmRandom
+                        ? `${bgmFiles.length} 首音乐随机分配给 ${videoCount} 条视频`
+                        : "关闭后所有视频使用第一首"}
+                    </p>
+                  </div>
+                </div>
+                <Toggle on={bgmRandom} onChange={() => setBgmRandom(v => !v)} label="" />
+              </div>
+            )}
+
+            {/* 无BGM提示 */}
+            {bgmFiles.length === 0 && (
+              <p className="text-[10px] text-muted-foreground text-center py-1">
+                不上传则生成无背景音乐的视频
+              </p>
+            )}
+          </SectionBox>
+
+          {/* 汇总信息 */}
+          {images.length > 0 && (
+            <div className="rounded-xl p-4 flex flex-col gap-2"
+              style={{ background: color + "08", border: `1.5px solid ${color}20` }}>
+              <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color }}>生成预览</p>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: "图片数量", value: `${images.length} 张` },
+                  { label: "生成数量", value: `${videoCount} 条` },
+                  { label: "输出比例", value: ratio },
+                  { label: "单条时长", value: `~${totalSec}s` },
+                ].map(m => (
+                  <div key={m.label} className="rounded-lg px-2.5 py-2"
+                    style={{ background: "white", border: "1px solid rgba(18,21,42,0.06)" }}>
+                    <p className="text-[9px] text-muted-foreground uppercase tracking-wide">{m.label}</p>
+                    <p className="text-[13px] font-semibold" style={{ color, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{m.value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 底部操作栏 */}
+      <div className="flex flex-col gap-3 pt-4 border-t border-border mt-1">
+        {/* 生成前摘要 */}
+        {images.length >= 2 && procState === "idle" && results.length === 0 && (
+          <div className="flex items-center gap-4 px-4 py-2.5 rounded-xl flex-wrap"
+            style={{ background: color + "06", border: `1px solid ${color}18` }}>
+            {[
+              { icon: "🖼", v: `${images.length} 张图片` },
+              { icon: "🎬", v: `生成 ${videoCount} 条` },
+              { icon: "📐", v: ratio },
+              { icon: "⏱", v: `每条 ~${totalSec}s` },
+              { icon: "✨", v: IMG_TRANSITIONS.find(t => t.value === transition)?.label ?? transition },
+              bgmFiles.length > 0
+                ? { icon: "🎵", v: `${bgmFiles.length} 首BGM${bgmRandom && bgmFiles.length > 1 ? "（随机）" : ""}` }
+                : { icon: "🔇", v: "无音乐" },
+            ].map(m => (
+              <span key={m.v} className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
+                <span>{m.icon}</span>{m.v}
+              </span>
+            ))}
+          </div>
+        )}
+
+        <div className="flex items-center gap-3 flex-wrap">
+          {procState === "idle" && results.length === 0 && images.length < 2 && (
+            <p className="text-[12px] text-muted-foreground flex items-center gap-1.5">
+              <Upload size={12} />请先上传至少 2 张图片
+            </p>
+          )}
+
+          <div className="ml-auto flex items-center gap-3">
+            {results.length > 0 && (
+              <GhostBtn onClick={() => { setResults([]); setProcState("idle"); setStageMsg(""); }}>
+                <RefreshCw size={13} />重新生成
+              </GhostBtn>
+            )}
+            <button
+              onClick={images.length >= 2 && procState === "idle" ? run : undefined}
+              disabled={images.length < 2 || procState === "processing"}
+              className="inline-flex items-center gap-2.5 px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{
+                background: procState === "done"
+                  ? "#22C55E"
+                  : procState === "error"
+                  ? "#EF4444"
+                  : images.length < 2
+                  ? "#C4C9E0"
+                  : `linear-gradient(135deg, ${color}, #3B82F6)`,
+                boxShadow: (images.length >= 2 && procState === "idle")
+                  ? `0 4px 16px ${color}50`
+                  : "none",
+              }}
+            >
+              {procState === "processing" ? (
+                <><RefreshCw size={14} className="animate-spin" />生成中 {pct}%…</>
+              ) : procState === "done" ? (
+                <><CheckCircle size={14} />已生成 {results.length} 条视频</>
+              ) : procState === "error" ? (
+                <><AlertCircle size={14} />生成失败，点击重试</>
+              ) : images.length < 2 ? (
+                <><Upload size={14} />请先上传至少 2 张图片</>
+              ) : (
+                <><Zap size={14} />一键生成 {videoCount} 条混剪视频</>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── App shell ────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -4313,7 +4975,7 @@ export default function App() {
 
   const panels: Record<FeatureId, React.ReactNode> = {
     F01: <F01 />, F02: <F02 />, F03: <F03 />, F04: <F04 />,
-    F05: <F05 />, F06: <F06 />, F07: <F07 />,
+    F05: <F05 />, F06: <F06 />, F07: <F07 />, F08: <F08 />,
   };
 
   return (
